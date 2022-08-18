@@ -52,7 +52,6 @@ async def instruction(message : types.Message):
         text = instruction.read()
     await message.answer(text)
 
-# регистрация всех хендлеров в файле
 def register_user_handlers(dp : Dispatcher):
     dp.register_message_handler(start, commands=['start'])
     dp.register_message_handler(register, commands=['Регистрация'])
