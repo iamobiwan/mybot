@@ -1,3 +1,4 @@
+from email.policy import default
 from sqlalchemy.orm import relationship
 import sqlalchemy as sql
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -40,7 +41,6 @@ class Server(Base):
     name = sql.Column(sql.String(30))
     lan = sql.Column(sql.String(18))
     lan_ip = sql.Column(sql.String(18))
-    ln_ip = sql.Column(sql.String(18))
     wan_ip = sql.Column(sql.String(15))
     users_cnt = sql.Column(sql.Integer(), default=0)
 
