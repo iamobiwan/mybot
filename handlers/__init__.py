@@ -1,0 +1,1 @@
+from .echo import register_handler_echo
