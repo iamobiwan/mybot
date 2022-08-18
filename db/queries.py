@@ -8,3 +8,9 @@ def create_user(telegram_id, name):
     with session_maker() as session:
         session.add(user)
         session.commit()
+
+def get_user(telegram_id):
+    """ Вытаскиваем пользователя из БД"""
+    with session_maker() as session:
+        user = session.query(User).filter(User.telegram_id == telegram_id).first()
+        return user 

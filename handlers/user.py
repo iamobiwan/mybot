@@ -2,11 +2,36 @@ from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardRemove
 from states import RegistrationStates
-from db.queries import create_user
+from db.queries import create_user, get_user
+from keyboards.reply import start_new_user, start_created_user, start_executed_user
+
+
+async def start(message : types.Message):
+    """ Старт бота, проверка регистрации пользователя """
+    user = get_user(message.from_user.id)
+    if user:
+        if user.status == 'created':
+            await message.answer(
+                f'Привет, {user.name}! Что делаем?',
+                reply_markup=start_created_user
+                )
+        else:
+            await message.answer(
+                f'Привет, {user.name}! Что делаем?',
+                reply_markup=start_executed_user
+                )
+    else:
+        await message.answer(
+            'Привет! Нужен VPN? Зарегистрируйся!',
+            reply_markup=start_new_user)
 
 async def register(message : types.Message):
-    await message.answer('Укажите имя', reply_markup=ReplyKeyboardRemove())
-    await RegistrationStates.name.set()
+    user = get_user(message.from_user.id)
+    if user:
+        await message.answer('Вы уже зарегистрированы!')
+    else:
+        await message.answer('Укажите имя', reply_markup=ReplyKeyboardRemove())
+        await RegistrationStates.name.set()
 
 async def register_set_name(message : types.Message, state: FSMContext):
     name = message.text
@@ -22,5 +47,6 @@ async def register_set_name(message : types.Message, state: FSMContext):
         await state.finish()
 
 def register_user_handlers(dp : Dispatcher):
+    dp.register_message_handler(start, commands=['start'])
     dp.register_message_handler(register, commands=['Регистрация'])
     dp.register_message_handler(register_set_name, state=RegistrationStates.name)
