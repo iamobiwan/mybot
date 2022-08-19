@@ -1,4 +1,3 @@
-from email.policy import default
 from sqlalchemy.orm import relationship
 import sqlalchemy as sql
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -22,6 +21,8 @@ class User(Base):
     public_key = sql.Column(sql.String(50))
     server_id = sql.Column(sql.Integer, sql.ForeignKey('server.id'))
     created_at = sql.Column(sql.DateTime)
+    updated_at = sql.Column(sql.DateTime)
+    vpn_created_at = sql.Column(sql.DateTime)
 
     request = relationship('Request', backref='user')
 
