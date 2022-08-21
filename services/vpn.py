@@ -1,9 +1,9 @@
-from db.queries import get_all_servers, get_all_user_ips, get_server, get_server_users, update_item
+from db.queries import get_all_servers, get_all_user_ips, get_server, get_server_vpns, update_item, create_user_vpn
 from subnet import IPv4Network
 from .keys import generate_key, public_key
 import subprocess
-from datetime import datetime
-from db.models import User, Server
+from datetime import datetime, timedelta
+from db.models import User, Server, Vpn
 
 
 def choose_server():
@@ -13,13 +13,13 @@ def choose_server():
         if server.users_cnt < 10:
             return server
 
-def choose_ip(server):
+def choose_ip(server: Server):
     """ Генерируем IP, чтобы не совпадал с уже имеющимися"""
     user_ips = get_all_user_ips(server.id)
     lan = IPv4Network(server.lan)
     user_ip = str(lan.random_ip())
     while user_ip in user_ips or user_ip == server.lan_ip:
-        user_ip = lan.random_ip()
+        user_ip = str(lan.random_ip())
     return user_ip
 
 def generate_user_config(user: User, server: Server):
@@ -27,11 +27,9 @@ def generate_user_config(user: User, server: Server):
     user_ip = choose_ip(server)
     priv_key = generate_key()
     pub_key = public_key(priv_key)
-    user.ip = user_ip
-    user.public_key = pub_key
-    user.server = server
+    create_user_vpn(user.id, server.id, user_ip, pub_key)
     user.status = 'executed'
-    user.vpn_created_at = datetime.now()
+    user.updated_at = datetime.now()
     server.users_cnt += 1
     with open(f'servers/instance/{server.name}_peer.txt', 'r') as peer:
         peer_config = peer.read()
@@ -39,7 +37,7 @@ def generate_user_config(user: User, server: Server):
             cfg.write(
                 '[Interface]\n'
                 f'PrivateKey = {priv_key}\n'
-                f'Address = {user.ip}/32\n'
+                f'Address = {user_ip}/32\n'
                 'DNS = 8.8.8.8\n\n'
                 f'{peer_config}'
             )
@@ -57,23 +55,23 @@ def generate_server_config_by_id(server_id):
          по всем пользователям данного сервера, чтобы в него не попали пользователи
          с просроченым VPN.
     """
-    server = get_server(server_id)
-    server_users = get_server_users(server_id)
+    server: Server = get_server(server_id)
+    server_vpns = get_server_vpns(server_id)
     date = datetime.now().strftime('%d%m%Y')
     with open(f'servers/instance/{server.name}_wg0.txt', 'r') as srv:
         interface = srv.read()
         with open(f"servers/config/{server.name}_{date}.conf", 'w') as cfg:
             cfg.write(f'{interface}\n')
-            for user in server_users:
-                if user.status != 'expired':
+            for vpn in server_vpns:
+                if vpn.status != 'expired':
                     cfg.write(
-                        f'#user_{user.id}\n'
+                        f'#user_{vpn.user_id}\n'
                         '[Peer]\n'
-                        f'PublicKey = {user.public_key}\n'
-                        f'AllowedIPs = {user.ip}\n'
+                        f'PublicKey = {vpn.public_key}\n'
+                        f'AllowedIPs = {vpn.ip}\n'
                     )
                 else:
-                    print(f'У пользователя с id={user.id} не оплачен VPN')
+                    print(f'У пользователя с id={vpn.user_id} не оплачен VPN')
     subprocess.run(f'scp servers/config/{server.name}_{date}.conf root@{server.wan_ip}:/etc/wireguard/wg0.conf', shell=True)
     subprocess.run(f'systemctl -H root@{server.wan_ip} restart wg-quick@wg0.service', shell=True)
     return True
@@ -86,7 +84,3 @@ def create_vpn(user, server):
         return True
     else:
         return False
-
-
-#     subprocess.run(f'scp /home/crash/projects/hercules_net_bot/servers_config/{server.name}_{date}.conf root@{server.wan_ip}:/etc/wireguard/wg0.conf',  shell=True)
-#     subprocess.run(f'systemctl -H root@{server.wan_ip} restart wg-quick@wg0.service',  shell=True)
