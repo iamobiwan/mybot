@@ -8,15 +8,7 @@ from handlers.user import register_user_handlers
 from handlers.admin import register_admin_handlers
 from config import load_config
 from services.check import check_user_status
-
-
-storage = MemoryStorage()   # сторадж для состояний
-config = load_config()      # конфиг из переменных окружения
-
-bot = Bot(token=config.tg_bot.token)
-dp = Dispatcher(bot, storage=storage)
-
-bot['config'] = config  # потом, чтобы получить доступ к конфигу bot.get('config')
+from loader import dp
 
 # регистрируем хендлеры
 register_admin_handlers(dp)

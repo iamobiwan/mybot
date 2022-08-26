@@ -13,21 +13,9 @@ class User(Base):
     created_at = sql.Column(sql.DateTime)
     updated_at = sql.Column(sql.DateTime)
 
-    vpn = relationship('Vpn', backref='user', )
+    vpn = relationship('Vpn', backref='user')
 
     
-class Vpn(Base):
-    __tablename__ = 'vpn'
-
-    id = sql.Column(sql.Integer, primary_key=True)
-    user_id = sql.Column(sql.Integer, sql.ForeignKey('user.id'), nullable=False)
-    server_id = sql.Column(sql.Integer, sql.ForeignKey('server.id'))
-    ip = sql.Column(sql.String(18))
-    public_key = sql.Column(sql.String(50))
-    status = sql.Column(sql.String(10))
-    created_at = sql.Column(sql.DateTime)
-    updated_at = sql.Column(sql.DateTime)
-    expires_at = sql.Column(sql.DateTime)
 
 
 class Server(Base):
@@ -44,3 +32,25 @@ class Server(Base):
 
     def __repr__(self) -> str:
         return f'{self.name}'
+
+class Vpn(Base):
+    __tablename__ = 'vpn'
+
+    id = sql.Column(sql.Integer, primary_key=True)
+    user_id = sql.Column(sql.Integer, sql.ForeignKey('user.id', ondelete='cascade'), nullable=False)
+    server_id = sql.Column(sql.Integer, sql.ForeignKey('server.id', ondelete='cascade'))
+    ip = sql.Column(sql.String(18))
+    public_key = sql.Column(sql.String(50))
+    status = sql.Column(sql.String(10))
+    created_at = sql.Column(sql.DateTime)
+    updated_at = sql.Column(sql.DateTime)
+    expires_at = sql.Column(sql.DateTime)
+
+
+class Tariff(Base):
+    __tablename__ = 'tariff'
+
+    id = sql.Column(sql.Integer, primary_key=True)
+    name = sql.Column(sql.String(30))
+    days = sql.Column(sql.Integer)
+    price = sql.Column(sql.Integer)

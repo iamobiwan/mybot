@@ -1,6 +1,6 @@
 from services.keys import public_key
 from .connect import session_maker
-from .models import User, Server, Vpn
+from .models import User, Server, Vpn, Tariff
 from datetime import datetime, timedelta
 
 def create_user(telegram_id, name):
@@ -69,3 +69,11 @@ def create_user_vpn(user_id, server_id, user_ip, pub_key):
     with session_maker() as session:
         session.add(user_vpn)
         session.commit()
+
+def get_all_tariffs():
+    with session_maker() as session:
+        return session.query(Tariff).all()
+
+def get_tariff(tariff_id):
+    with session_maker() as session:
+        return session.query(Tariff).filter(Tariff.id == tariff_id).first()

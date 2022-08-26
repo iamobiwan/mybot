@@ -1,6 +1,6 @@
 # ingnore
 servers/
-users/
+.users/
 
 
 # Byte-compiled / optimized / DLL files

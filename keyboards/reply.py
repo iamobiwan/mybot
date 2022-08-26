@@ -4,7 +4,9 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 reg = KeyboardButton('/Регистрация')
 info = KeyboardButton('/Информация')
 instruction = KeyboardButton('/Инструкция')
-buy = KeyboardButton('/ПолучитьVPN')
+get_trial = KeyboardButton('/ПробнаяВерсия')
+buy = KeyboardButton('/КупитьVPN')
+profile = KeyboardButton('/МойПрофиль')
 status = KeyboardButton('/СтатусVPN')
 extend = KeyboardButton('/ПродлитьVPN')
 
@@ -16,8 +18,8 @@ start_expired_user = ReplyKeyboardMarkup(resize_keyboard=True)
 
 # добавляем в нашу клавиатуру кнопки
 start_new_user.row(reg, info)
-start_created_user.add(buy).row(info, instruction)
-start_executed_user.add(status).row(info, instruction)
-start_expired_user.add(extend).row(info, instruction)
+start_created_user.row(buy, get_trial).row(info, instruction).add(profile)
+start_executed_user.add(extend).row(info, instruction).add(profile)
+start_expired_user.add(extend).row(info, instruction).add(profile)
 # add - друг под другом, insert - рядом если есть место
 # есть еще метод .row(b1,b2) - все кнопки в ряд
