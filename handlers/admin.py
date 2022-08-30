@@ -2,7 +2,7 @@ from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardRemove
 from states import RegistrationStates
-from db.queries import create_user, get_user
+from db.queries import create_user, get_user_data
 from keyboards.reply import start_new_user, start_created_user, start_executed_user
 
 async def admin_start(message : types.Message):

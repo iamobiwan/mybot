@@ -1,18 +1,22 @@
+import asyncio
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardRemove
+from db.models import User
 from states import RegistrationStates
-from db.queries import create_user, get_user, get_tariff
+from db.queries import create_user, get_user_data, get_tariff
 from keyboards.reply import start_new_user, start_created_user, start_executed_user
 from keyboards.inline import tariffs_keyboard, pay_keyboard, tariffs_cd
 from services.vpn import generate_user_config, create_vpn, choose_server
 from services.payment import get_pay_url
+from services.decorators import auth
 from loader import dp
 
 async def start(message : types.Message):
     """ Старт бота, проверка регистрации пользователя """
-    user = get_user(message.from_user.id)
-    if user:
+    data = get_user_data(message.from_user.id)
+    if data:
+        user = data.get('user')
         if user.status == 'created':
             await message.answer(
                 f'Привет, {user.name}! Что делаем?',
@@ -29,8 +33,8 @@ async def start(message : types.Message):
             reply_markup=start_new_user)
 
 async def register(message : types.Message):
-    user = get_user(message.from_user.id)
-    if user:
+    data = get_user_data(message.from_user.id)
+    if data:
         await message.answer('Вы уже зарегистрированы!')
     else:
         await message.answer('Укажите имя', reply_markup=ReplyKeyboardRemove())
@@ -49,36 +53,58 @@ async def register_set_name(message : types.Message, state: FSMContext):
         create_user(message.from_user.id, name)
         await message.answer(f'Регистрация завершена, {name}!', reply_markup=start_created_user)
         await state.finish()
-    
-async def instruction(message : types.Message):
+
+@auth
+async def profile(message : types.Message, data, **kwargs):
+    user = data.get('user')
+    user_vpn = data.get('vpn')
+    text = f'Ваше имя: {user.name}\n'
+    if not user_vpn:
+        text += f'Статус вашего VPN: Не создан'
+    else:
+        text += f'Статус вашего VPN: {user_vpn.status}'
+    await message.answer(text)
+
+@auth
+async def instruction(message : types.Message, data, **kwargs):
     with open('text/instruction.txt', 'r') as instruction:
         text = instruction.read()
     await message.answer(text)
 
-async def get_vpn(message: types.Message):
+@auth
+async def get_vpn(message: types.Message, data, **kwargs):
     await message.answer('Выберите тарифный план:', reply_markup=tariffs_keyboard())
 
 async def pay(callback: types.CallbackQuery, callback_data: dict):
     tariff_id = callback_data.get('id')
     tariff = get_tariff(tariff_id)
-    user = get_user(callback.from_user.id)
+    data = get_user_data(callback.from_user.id)
+    user = data.get('user')
+    await callback.message.edit_text(f'Подождите, формируется счет...')
     pay_url = get_pay_url(tariff.price, user.id)
-    await callback.message.edit_text(f'Выбран тариф {tariff.name}')
-    await callback.message.edit_reply_markup(pay_keyboard(pay_url))
+    await callback.message.edit_text(f'Выбран тариф {tariff.name}', reply_markup=pay_keyboard(pay_url))
 
 async def cancel_bill(callback: types.CallbackQuery):
-    await callback.message.edit_text('Выберите тарифный план:')
-    await callback.message.edit_reply_markup(tariffs_keyboard())
+    await callback.message.edit_text('Выберите тарифный план:', reply_markup=tariffs_keyboard())
+
+async def cancel_buy(callback: types.CallbackQuery):
+    await callback.message.delete()
 
 async def get_vpn_trial(message: types.Message):
-    user = get_user(message.from_user.id)
+    data = get_user_data(message.from_user.id)
+    user = data.get('user')
     user_id = user.id
-    if user:
+    if data:
+        await message.answer(f'Пробная версия выдается на 3 дня.\n'\
+                             f'Статус твоего аккаунта можно посмотреть\n'\
+                             f'по кнопке "МойПрофиль"')
+        msg = await message.answer('Формируем настройки...')
         server = choose_server()
         if server:
             if user.status == 'created':
                 result = create_vpn(user, server)
                 if result:
+                    await msg.delete()
                     await message.answer('Вот ваш QR код')
                     with open(f'users/qr/{user_id}.png', 'rb') as photo:
                         await message.bot.send_photo(message.chat.id, photo, reply_markup=start_executed_user)
@@ -98,6 +124,7 @@ def register_user_handlers(dp : Dispatcher):
     dp.register_message_handler(get_vpn, commands=['КупитьVPN', 'ПродлитьVPN'])
     dp.register_message_handler(get_vpn_trial, commands=['ПробнаяВерсия'])
     dp.register_message_handler(instruction, commands=['Инструкция'])
+    dp.register_message_handler(profile, commands=['МойПрофиль'])
     dp.register_callback_query_handler(pay, tariffs_cd.filter(tariff='tariff'))
     dp.register_callback_query_handler(cancel_bill, text='cancel_bill')
-    # dp.register_callback_query_handler(cancel_choose, text='cancel_choose')
+    dp.register_callback_query_handler(cancel_buy, text='cancel_buy')

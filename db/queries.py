@@ -15,10 +15,23 @@ def create_user(telegram_id, name):
         session.add(user)
         session.commit()
 
-def get_user(telegram_id):
-    """ Вытаскиваем пользователя из БД"""
+def user_exists(telegram_id):
     with session_maker() as session:
         return session.query(User).filter(User.telegram_id == telegram_id).first()
+
+def get_user_data(telegram_id):
+    """ Вытаскиваем пользователя из БД"""
+    with session_maker() as session:
+        user = session.query(User).filter(User.telegram_id == telegram_id).first()
+        if user:
+            try:
+                vpn = user.vpn[0]
+            except:
+                vpn = None
+            return {
+                'user': user,
+                'vpn': vpn
+            }
 
 def get_user_by_id(user_id):
     """ Вытаскиваем пользователя из БД"""
