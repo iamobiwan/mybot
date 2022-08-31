@@ -38,10 +38,19 @@ def get_user_by_id(user_id):
     with session_maker() as session:
         return session.query(User).filter(User.id == user_id).first()
 
-def get_trial_vpns():
-    """ Получить все vpn у которых пробный период"""
+def get_pending_users():
     with session_maker() as session:
-        return session.query(Vpn).filter(Vpn.status == 'trial').all()
+        return session.query(User).filter(User.status == 'pending').all()
+
+def get_vpns():
+    """ Получить все vpn """
+    with session_maker() as session:
+        return session.query(Vpn).all()
+
+def get_server_vpns(server_id):
+    """ Получить всех пользователей на сервере """
+    with session_maker() as session:
+        return session.query(Vpn).filter(Vpn.server_id == server_id).all()
 
 def update_item(item):
     with session_maker() as session:
@@ -53,10 +62,6 @@ def get_server(server_id):
     with session_maker() as session:
         return session.query(Server).get(server_id)  
 
-def get_server_vpns(server_id):
-    """ Получить всех пользователей на сервере """
-    with session_maker() as session:
-        return session.query(Vpn).filter(Vpn.server_id == server_id).all()
 
 def get_all_servers():
     """ Получить все сервера """
@@ -68,7 +73,7 @@ def get_all_user_ips(server_id):
     with session_maker() as session:
         return [item.ip for item in session.query(Vpn.ip).filter(Vpn.server_id == server_id)]
 
-def create_user_vpn(user_id, server_id, user_ip, pub_key):
+def create_trial_vpn(user_id, server_id, user_ip, pub_key):
     user_vpn = Vpn(
         user_id=user_id,
         server_id=server_id,
@@ -77,7 +82,7 @@ def create_user_vpn(user_id, server_id, user_ip, pub_key):
         status='trial',
         created_at=datetime.now(),
         updated_at=datetime.now(),
-        expires_at=datetime.now() + timedelta(minutes=1)
+        expires_at=datetime.now() + timedelta(minutes=3)
     )
     with session_maker() as session:
         session.add(user_vpn)
