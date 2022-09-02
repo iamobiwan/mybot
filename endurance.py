@@ -6,24 +6,23 @@ import asyncio
 import aioschedule
 from handlers.user import register_user_handlers
 from handlers.admin import register_admin_handlers
-from config import load_config
 from services.actions import check_vpn_expire, rebuild_server_config, check_pending_users
-from loader import dp
+from loader import dp, logger
 
 # регистрируем хендлеры
 register_admin_handlers(dp)
 register_user_handlers(dp)
 
 async def scheduler():
-    aioschedule.every(1).minutes.do(check_vpn_expire)
-    aioschedule.every(2).minutes.do(check_pending_users)
-    aioschedule.every(3).minutes.do(rebuild_server_config)
+    aioschedule.every(5).minutes.do(check_pending_users)
+    aioschedule.every().day.at('00:01').do(check_vpn_expire)
+    aioschedule.every().day.at('00:02').do(rebuild_server_config)
     while True:
         await aioschedule.run_pending()
         await asyncio.sleep(1)
    
 async def on_startup(_):
-    print('Бот запущен...')
+    logger.info('Бот запущен...')
     asyncio.create_task(scheduler())
 
 

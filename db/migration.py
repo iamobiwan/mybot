@@ -1,5 +1,4 @@
 from curses import echo
-import os
 from sqlalchemy.orm import relationship, backref
 import sqlalchemy as sql
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -8,7 +7,7 @@ from sqlalchemy import create_engine
 
 Base = declarative_base()
 
-engine = create_engine(os.getenv('db'), echo=True)
+engine = create_engine(f'postgresql://endurance:qwerty@127.0.0.1:5432/endurance_db', echo=True)
 
 session_maker = sessionmaker(bind=engine)
 

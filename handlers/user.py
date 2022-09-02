@@ -91,7 +91,7 @@ async def instruction(message : types.Message, data, **kwargs):
     await message.answer(text)
 
 @auth
-async def get_vpn_trial(message: types.Message):
+async def get_vpn_trial(message: types.Message, data, **kwargs):
     """ Создает trial vpn на 3 дня для тестирования пользователем """
     data = get_user_data(message.from_user.id)
     user = data.get('user')
