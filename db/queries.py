@@ -1,7 +1,7 @@
-from services.keys import public_key
 from .connect import session_maker
 from .models import User, Server, Vpn, Tariff
 from datetime import datetime, timedelta
+from loader import logger
 
 def create_user(telegram_id, name):
     """ Создаем пользователя в БД """
@@ -14,6 +14,7 @@ def create_user(telegram_id, name):
     with session_maker() as session:
         session.add(user)
         session.commit()
+        logger.info(f'Создан пользователь {user.id}, зовут {user.name}')
 
 def user_exists(telegram_id):
     with session_maker() as session:
@@ -22,12 +23,19 @@ def user_exists(telegram_id):
 def get_user_data(telegram_id):
     """ Вытаскиваем пользователя из БД"""
     with session_maker() as session:
-        user = session.query(User).filter(User.telegram_id == telegram_id).first()
+        user: User = session.query(User).filter(User.telegram_id == telegram_id).first()
         if user:
             try:
-                vpn = user.vpn[0]
+                vpn: Vpn = user.vpn[0]
             except:
                 vpn = None
+            logger.info(
+                f'\tЗапрошен пользователь с ID {telegram_id}\n'
+                f'\tID = {user.id}\n'
+                f'\tTelegram ID = {user.telegram_id}\n'
+                f'\tName = {user.name}\n'
+                f'\tStatus = {user.status}'
+            )
             return {
                 'user': user,
                 'vpn': vpn

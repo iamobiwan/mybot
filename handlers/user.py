@@ -1,4 +1,3 @@
-import asyncio
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardRemove
@@ -7,10 +6,10 @@ from states import RegistrationStates
 from db.queries import create_user, get_user_data, get_tariff
 from keyboards.reply import start_new_user, start_created_user, start_executed_user
 from keyboards.inline import tariffs_keyboard, pay_keyboard, tariffs_cd
-from services.vpn import generate_user_config, create_vpn, choose_server
+from services.vpn import create_vpn, choose_server
 from services.payment import get_pay_url
 from services.decorators import auth
-from loader import dp
+from loader import logger
 
 async def start(message : types.Message):
     """ Старт бота, проверка регистрации пользователя """
@@ -33,6 +32,10 @@ async def start(message : types.Message):
             reply_markup=start_new_user)
 
 async def register(message : types.Message):
+    """ 
+        После ввода имени, активирует хендлер "register_set_name",
+        фиксируя имя через FSM
+    """
     data = get_user_data(message.from_user.id)
     if data:
         await message.answer('Вы уже зарегистрированы!')
@@ -44,9 +47,11 @@ async def register_set_name(message : types.Message, state: FSMContext):
     """ Регистрация пользователей после проверки имени """
     name = message.text
     if len(name) > 15:  # Проверка на длину имени
+        logger.warning(f'Пользователь с telegram ID {message.from_user.id} ввел слишком длинное имя')
         await message.answer(f'Имя слишком длинное, попробуй еще.')
         await RegistrationStates.name.set()
     elif "/" in name or "@" in name:
+        logger.warning(f'Пользователь с telegram ID {message.from_user.id} ввел не корректное имя')
         await message.answer(f'Имя содержит не допустимые символы, попробуй еще.')
         await RegistrationStates.name.set()
     else:
@@ -56,9 +61,14 @@ async def register_set_name(message : types.Message, state: FSMContext):
 
 @auth
 async def profile(message : types.Message, data, **kwargs):
-    user = data.get('user')
+    """
+        Возвращает статус профиля и статус VPN пользователя.
+        Данные пользователя возвращаются из декоратора в параметре "data"
+    """
+    user: User = data.get('user')
     user_vpn: Vpn = data.get('vpn')
-    text = f'Ваше имя: {user.name}\n'
+    text = f'Ваше имя: {user.name}\n'\
+           f'Ваш ID: {user.id}\n'
     if not user_vpn:
         text += f'Статус вашего VPN: Не создан'
     elif user.status == 'pending':
@@ -75,11 +85,14 @@ async def profile(message : types.Message, data, **kwargs):
 
 @auth
 async def instruction(message : types.Message, data, **kwargs):
+    """ Выдает пользователю инструкцию из файла """
     with open('text/instruction.txt', 'r') as instruction:
         text = instruction.read()
     await message.answer(text)
 
+@auth
 async def get_vpn_trial(message: types.Message):
+    """ Создает trial vpn на 3 дня для тестирования пользователем """
     data = get_user_data(message.from_user.id)
     user = data.get('user')
     user_id = user.id
@@ -89,6 +102,7 @@ async def get_vpn_trial(message: types.Message):
                              f'по кнопке "МойПрофиль"')
         server = choose_server()
         if server:
+            logger.info(f'Для пользователя {user.id}')
             if user.status == 'created':
                 result = create_vpn(user, server)
                 if result:
@@ -126,7 +140,7 @@ def register_user_handlers(dp : Dispatcher):
     dp.register_message_handler(start, commands=['start'])
     dp.register_message_handler(register, commands=['Регистрация'])
     dp.register_message_handler(register_set_name, state=RegistrationStates.name)
-    dp.register_message_handler(buy_vpn, commands=['КупитьVPN', 'ПродлитьVPN'])
+    dp.register_message_handler(buy_vpn, commands=['ПродлитьVPN'])
     dp.register_message_handler(get_vpn_trial, commands=['ПробнаяВерсия'])
     dp.register_message_handler(instruction, commands=['Инструкция'])
     dp.register_message_handler(profile, commands=['МойПрофиль'])
