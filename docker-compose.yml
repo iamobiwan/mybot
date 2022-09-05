@@ -8,7 +8,7 @@ services:
     # depends_on:
     #   - db
     volumes:
-      - ~/projects/test/logs:/endurance_vpn_bot/logs:rw
+      - /home/projects/test/logs:/endurance_vpn_bot/logs:rw
 #   db:
 #     container_name: endurance_db
 #     restart: always

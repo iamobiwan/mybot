@@ -29,13 +29,6 @@ def get_user_data(telegram_id):
                 vpn: Vpn = user.vpn[0]
             except:
                 vpn = None
-            logger.info(
-                f'\tЗапрошен пользователь с ID {telegram_id}\n'
-                f'\tID = {user.id}\n'
-                f'\tTelegram ID = {user.telegram_id}\n'
-                f'\tName = {user.name}\n'
-                f'\tStatus = {user.status}'
-            )
             return {
                 'user': user,
                 'vpn': vpn
@@ -46,9 +39,18 @@ def get_user_by_id(user_id):
     with session_maker() as session:
         return session.query(User).filter(User.id == user_id).first()
 
-def get_pending_users():
+def get_pending_vpns():
     with session_maker() as session:
-        return session.query(User).filter(User.status == 'pending').all()
+        pending_vpns = session.query(Vpn).filter(Vpn.status == 'pending').all()
+        data = {}
+        cnt = 0
+        for vpn in pending_vpns:
+            cnt += 1
+            data[cnt] = {
+                'vpn': vpn,
+                'user': vpn.user
+            }
+        return data
 
 def get_vpns():
     """ Получить все vpn """
@@ -70,7 +72,6 @@ def get_server(server_id):
     with session_maker() as session:
         return session.query(Server).get(server_id)  
 
-
 def get_all_servers():
     """ Получить все сервера """
     with session_maker() as session:
@@ -87,7 +88,7 @@ def create_trial_vpn(user_id, server_id, user_ip, pub_key):
         server_id=server_id,
         ip=user_ip,
         public_key=pub_key,
-        status='trial',
+        status='pending',
         created_at=datetime.now(),
         updated_at=datetime.now(),
         expires_at=datetime.now() + timedelta(minutes=3)

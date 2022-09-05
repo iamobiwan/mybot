@@ -11,6 +11,7 @@ from services.payment import get_pay_url
 from services.decorators import auth
 from loader import logger
 
+@logger.catch
 async def start(message : types.Message):
     """ Старт бота, проверка регистрации пользователя """
     data = get_user_data(message.from_user.id)
@@ -31,6 +32,7 @@ async def start(message : types.Message):
             'Привет! Нужен VPN? Зарегистрируйся!',
             reply_markup=start_new_user)
 
+@logger.catch
 async def register(message : types.Message):
     """ 
         После ввода имени, активирует хендлер "register_set_name",
@@ -43,6 +45,7 @@ async def register(message : types.Message):
         await message.answer('Укажите имя', reply_markup=ReplyKeyboardRemove())
         await RegistrationStates.name.set()
 
+@logger.catch
 async def register_set_name(message : types.Message, state: FSMContext):
     """ Регистрация пользователей после проверки имени """
     name = message.text
@@ -59,6 +62,7 @@ async def register_set_name(message : types.Message, state: FSMContext):
         await message.answer(f'Регистрация завершена, {name}!', reply_markup=start_created_user)
         await state.finish()
 
+@logger.catch
 @auth
 async def profile(message : types.Message, data, **kwargs):
     """
@@ -83,6 +87,7 @@ async def profile(message : types.Message, data, **kwargs):
                 f'Срок действия заканчивается: {user_vpn.expires_at.strftime("%d.%m.%Y")}'
     await message.answer(text)
 
+@logger.catch
 @auth
 async def instruction(message : types.Message, data, **kwargs):
     """ Выдает пользователю инструкцию из файла """
@@ -90,36 +95,30 @@ async def instruction(message : types.Message, data, **kwargs):
         text = instruction.read()
     await message.answer(text)
 
+@logger.catch
 @auth
 async def get_vpn_trial(message: types.Message, data, **kwargs):
     """ Создает trial vpn на 3 дня для тестирования пользователем """
-    data = get_user_data(message.from_user.id)
     user = data.get('user')
-    user_id = user.id
-    if data:
-        await message.answer(f'Пробная версия выдается на 3 дня.\n'\
-                             f'Статус твоего аккаунта можно посмотреть\n'\
-                             f'по кнопке "МойПрофиль"')
-        server = choose_server()
-        if server:
-            logger.info(f'Для пользователя {user.id}')
-            if user.status == 'created':
-                result = create_vpn(user, server)
-                if result:
-                    await message.answer('Получили Ваш запрос.\nОжидайте формирования настроек.\nОбычно занимает около 5 минут.')
-                else:
-                    await message.answer('Что-то пошло не так')
-            else:
-                await message.answer('Для вас уже создан VPN', reply_markup=start_executed_user)
+    logger.info(f'Получен запрос на пробный VPN от пользователя {user.id}')
+    await message.answer(f'Пробная версия выдается на 3 дня.\n'\
+                            f'Статус твоего аккаунта можно посмотреть\n'\
+                            f'по кнопке "МойПрофиль"')
+    if user.status == 'created':
+        result = create_vpn(user)
+        if result:
+            await message.answer('Получили Ваш запрос.\nОжидайте формирования настроек.\nОбычно занимает около 5 минут.')
         else:
-            await message.answer('Нет свободных серверов', reply_markup=start_created_user)
+            await message.answer('Что-то пошло не так, обратитесь в техническую поддержку @endurancevpnsupport')
     else:
-        await message.answer('Вы не зарегистрированы', reply_markup=start_new_user)
+        await message.answer('Для вас уже создан VPN', reply_markup=start_executed_user)
 
+@logger.catch
 @auth
 async def buy_vpn(message: types.Message, data, **kwargs):
     await message.answer('Выберите тарифный план:', reply_markup=tariffs_keyboard())
 
+@logger.catch
 async def pay(callback: types.CallbackQuery, callback_data: dict):
     tariff_id = callback_data.get('id')
     tariff = get_tariff(tariff_id)
@@ -129,9 +128,11 @@ async def pay(callback: types.CallbackQuery, callback_data: dict):
     pay_url = get_pay_url(tariff.price, user.id)
     await callback.message.edit_text(f'Выбран тариф {tariff.name}', reply_markup=pay_keyboard(pay_url))
 
+@logger.catch
 async def cancel_bill(callback: types.CallbackQuery):
     await callback.message.edit_text('Выберите тарифный план:', reply_markup=tariffs_keyboard())
 
+@logger.catch
 async def cancel_buy(callback: types.CallbackQuery):
     await callback.message.delete()
 

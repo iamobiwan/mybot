@@ -8,7 +8,7 @@ logger.add(
         'logs/{time:DD-MM-YYYY}.log',
         format='{time:DD-MM-YYYY_HH:mm:ss} | {level} | {name}:{function}:{line} - {message}',
         level='DEBUG',
-        rotation='00:00'
+        rotation='00:00',
     )
 config = load_config()      # конфиг из переменных окружения
 
