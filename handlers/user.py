@@ -75,7 +75,7 @@ async def profile(message : types.Message, data, **kwargs):
            f'Ваш ID: {user.id}\n'
     if not user_vpn:
         text += f'Статус вашего VPN: Не создан'
-    elif user.status == 'pending':
+    elif user_vpn.status == 'pending':
         text += f'Статус вашего VPN: В обработке'
     elif user_vpn.status == 'paid':
         text += f'Статус вашего VPN: "Оплачен"\n'\

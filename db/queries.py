@@ -42,14 +42,12 @@ def get_user_by_id(user_id):
 def get_pending_vpns():
     with session_maker() as session:
         pending_vpns = session.query(Vpn).filter(Vpn.status == 'pending').all()
-        data = {}
-        cnt = 0
+        data = []
         for vpn in pending_vpns:
-            cnt += 1
-            data[cnt] = {
+            data.append({
                 'vpn': vpn,
                 'user': vpn.user
-            }
+            })
         return data
 
 def get_vpns():

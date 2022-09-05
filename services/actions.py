@@ -63,9 +63,9 @@ async def check_pending_vpns():
     server_ids = []
     if data:
         logger.info('Есть ожидающие VPN...')
-        for value in data.values():
-            vpn = value.get('vpn')
-            user = value.get('user')
+        for item in data:
+            vpn = item.get('vpn')
+            user = item.get('user')
             if vpn.server_id not in server_ids:
                 server_ids.append(vpn.server_id)
             vpn.status = 'trial'
