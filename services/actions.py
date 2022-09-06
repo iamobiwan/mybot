@@ -58,7 +58,6 @@ async def rebuild_server_config_by_id(server_ids):
 
 @logger.catch
 async def check_pending_vpns():
-    logger.info('Проверяем очередь новых VPN...')
     data = get_pending_vpns()
     server_ids = []
     if data:

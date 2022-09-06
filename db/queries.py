@@ -1,5 +1,5 @@
 from .connect import session_maker
-from .models import User, Server, Vpn, Tariff
+from .models import User, Server, Vpn, Tariff, Bill
 from datetime import datetime, timedelta
 from loader import logger
 
@@ -89,7 +89,7 @@ def create_trial_vpn(user_id, server_id, user_ip, pub_key):
         status='pending',
         created_at=datetime.now(),
         updated_at=datetime.now(),
-        expires_at=datetime.now() + timedelta(minutes=3)
+        expires_at=datetime.now() + timedelta(minutes=15)
     )
     with session_maker() as session:
         session.add(user_vpn)
@@ -102,3 +102,36 @@ def get_all_tariffs():
 def get_tariff(tariff_id):
     with session_maker() as session:
         return session.query(Tariff).filter(Tariff.id == tariff_id).first()
+
+def create_bill(vpn, tariff):
+    label = f'{vpn.id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+    pay_url = f'https://yoomoney.ru/quickpay/confirm.xml?receiver=4100117941854976'\
+              f'&quickpay-form=shop&sum={tariff.price}&label={label}'
+    bill = Bill(
+        status='pending',
+        vpn_id=vpn.id,
+        tariff_id=tariff.id,
+        pay_url=pay_url
+    )
+    with session_maker() as session:
+        session.add(bill)
+        session.commit()
+        return bill.id
+
+def get_bill(bill_id):
+    with session_maker() as session:
+        return session.query(Bill).filter(Bill.id == bill_id).first()
+
+def get_pending_bills_data_by_vpn(vpn_id):
+    with session_maker() as session:
+        bills = session.query(Bill).filter(
+            Bill.vpn_id == vpn_id,
+            Bill.status == 'pending'
+            ).all()
+        data = []
+        for bill in bills:
+            data.append({
+                    'bill': bill,
+                    'tariff': bill.tariff
+                })
+        return data

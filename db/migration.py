@@ -24,8 +24,6 @@ class User(Base):
     vpn = relationship('Vpn', backref='user')
 
     
-
-
 class Server(Base):
     __tablename__ = 'server'
 
@@ -54,6 +52,8 @@ class Vpn(Base):
     updated_at = sql.Column(sql.DateTime)
     expires_at = sql.Column(sql.DateTime)
 
+    bill = relationship('Bill', backref='vpn')
+
 
 class Tariff(Base):
     __tablename__ = 'tariff'
@@ -62,6 +62,18 @@ class Tariff(Base):
     name = sql.Column(sql.String(30))
     days = sql.Column(sql.Integer)
     price = sql.Column(sql.Integer)
+
+    bill = relationship('Bill', backref='tariff')
+
+
+class Bill(Base):
+    __tablename__ = 'bill'
+
+    id = sql.Column(sql.Integer, primary_key=True)
+    status = sql.Column(sql.String(10))
+    vpn_id = sql.Column(sql.Integer, sql.ForeignKey('vpn.id'))
+    tariff_id = sql.Column(sql.Integer, sql.ForeignKey('tariff.id'))
+    pay_url = sql.Column(sql.String(200))
 
 Base.metadata.drop_all(engine)
 Base.metadata.create_all(engine)

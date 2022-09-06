@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.callback_data import CallbackData
-from db.queries import get_all_tariffs
+from db.queries import get_all_tariffs, get_bill
 
 tariffs_cd = CallbackData('vpn', 'tariff', 'id')
 
@@ -23,14 +23,31 @@ def tariffs_keyboard():
     )
     return markup
 
-def pay_keyboard(pay_url):
+def pay_keyboard(bill_id):
+    bill = get_bill(bill_id)
     markup = InlineKeyboardMarkup()
-    bill = InlineKeyboardButton(text='Оплатить', url=pay_url)
-    markup.insert(bill)
+    btn = InlineKeyboardButton(text='Оплатить', url=bill.pay_url)
+    markup.insert(btn)
+    markup.row(
+        InlineKeyboardButton(
+                text='Назад',
+                callback_data='back_tariff'
+            )
+    )
     markup.row(
         InlineKeyboardButton(
                 text='Отмена',
-                callback_data='cancel_bill'
+                callback_data='cancel_buy'
             )
     )
+    return markup
+
+def pending_bills(bills_data):
+    markup = InlineKeyboardMarkup()
+    for bill_data in bills_data:
+        tariff = bill_data.get('tariff')
+        bill = bill_data.get('bill')
+        text = f'Оплата тарифа {tariff.name} на сумму {tariff.price}'
+        btn = InlineKeyboardButton(text=text, url=bill.pay_url)
+        markup.row(btn)
     return markup

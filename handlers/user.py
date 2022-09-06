@@ -1,11 +1,12 @@
+from itertools import count
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardRemove
 from db.models import User, Vpn
 from states import RegistrationStates
-from db.queries import create_user, get_user_data, get_tariff
+from db.queries import create_user, get_user_data, get_tariff, create_bill, get_bill, get_pending_bills_data_by_vpn
 from keyboards.reply import start_new_user, start_created_user, start_executed_user
-from keyboards.inline import tariffs_keyboard, pay_keyboard, tariffs_cd
+from keyboards.inline import tariffs_keyboard, pay_keyboard, tariffs_cd, pending_bills
 from services.vpn import create_vpn, choose_server
 from services.payment import get_pay_url
 from services.decorators import auth
@@ -89,6 +90,13 @@ async def profile(message : types.Message, data, **kwargs):
 
 @logger.catch
 @auth
+async def bills(message: types.Message, data, **kwargs):
+    vpn = data.get('vpn')
+    bills_data = get_pending_bills_data_by_vpn(vpn.id)
+    await message.answer(f'Вот ваши счета на оплату:', reply_markup=pending_bills(bills_data))
+
+@logger.catch
+@auth
 async def instruction(message : types.Message, data, **kwargs):
     """ Выдает пользователю инструкцию из файла """
     with open('text/instruction.txt', 'r') as instruction:
@@ -107,7 +115,8 @@ async def get_vpn_trial(message: types.Message, data, **kwargs):
     if user.status == 'created':
         result = create_vpn(user)
         if result:
-            await message.answer('Получили Ваш запрос.\nОжидайте формирования настроек.\nОбычно занимает около 5 минут.')
+            await message.answer('Получили Ваш запрос.\nОжидайте формирования настроек.\nОбычно занимает около 5 минут.',
+            reply_markup=start_executed_user                                    )
         else:
             await message.answer('Что-то пошло не так, обратитесь в техническую поддержку @endurancevpnsupport')
     else:
@@ -120,16 +129,19 @@ async def buy_vpn(message: types.Message, data, **kwargs):
 
 @logger.catch
 async def pay(callback: types.CallbackQuery, callback_data: dict):
-    tariff_id = callback_data.get('id')
-    tariff = get_tariff(tariff_id)
+    # logger.debug(f'callback_data={callback_data}')
+    tariff = get_tariff(callback_data.get('id'))
     data = get_user_data(callback.from_user.id)
-    user = data.get('user')
-    await callback.message.edit_text(f'Подождите, формируется счет...')
-    pay_url = get_pay_url(tariff.price, user.id)
-    await callback.message.edit_text(f'Выбран тариф {tariff.name}', reply_markup=pay_keyboard(pay_url))
+    vpn = data.get('vpn')
+    data = get_pending_bills_data_by_vpn(vpn.id)
+    if len(data) >= 3:
+        await callback.message.edit_text(f'Вам выставлено максимальное количество счетов. Вы можете оплатить их в личном кабинете.')
+    else:
+        bill_id = create_bill(vpn, tariff)
+        await callback.message.edit_text(f'Ваш счет на оплату тарифа {tariff.name} на {tariff.days} дней', reply_markup=pay_keyboard(bill_id))
 
 @logger.catch
-async def cancel_bill(callback: types.CallbackQuery):
+async def back_tariff(callback: types.CallbackQuery):
     await callback.message.edit_text('Выберите тарифный план:', reply_markup=tariffs_keyboard())
 
 @logger.catch
@@ -145,6 +157,7 @@ def register_user_handlers(dp : Dispatcher):
     dp.register_message_handler(get_vpn_trial, commands=['ПробнаяВерсия'])
     dp.register_message_handler(instruction, commands=['Инструкция'])
     dp.register_message_handler(profile, commands=['МойПрофиль'])
+    dp.register_message_handler(bills, commands=['МоиСчета'])
     dp.register_callback_query_handler(pay, tariffs_cd.filter(tariff='tariff'))
-    dp.register_callback_query_handler(cancel_bill, text='cancel_bill')
+    dp.register_callback_query_handler(back_tariff, text='back_tariff')
     dp.register_callback_query_handler(cancel_buy, text='cancel_buy')
