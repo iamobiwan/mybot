@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 from typing import List
 from dotenv import load_dotenv
+import const
 
 @dataclass
 class TgBot:
@@ -17,14 +18,16 @@ class DbConfig:
     name: str
 
 @dataclass
-class Misc:
-    pass
+class Const:
+    trial_ttl: int
+    bill_ttl: int
+    max_bills: int
 
 @dataclass
 class Config:
     tg_bot: TgBot
     db: DbConfig
-    misc: Misc
+    const: Const
 
 def load_config(path: str = None):
     load_dotenv(path)
@@ -40,5 +43,9 @@ def load_config(path: str = None):
             user=os.getenv('DB_USER'),
             password=os.getenv('DB_PASSWORD'),
         ),
-        misc=Misc()
+        const=Const(
+            trial_ttl=const.TRIAL_TTL,
+            bill_ttl=const.BILL_TTL,
+            max_bills=const.MAX_BIILS
+        )
     )

@@ -74,21 +74,41 @@ class Bill(Base):
     vpn_id = sql.Column(sql.Integer, sql.ForeignKey('vpn.id'))
     tariff_id = sql.Column(sql.Integer, sql.ForeignKey('tariff.id'))
     pay_url = sql.Column(sql.String(200))
+    created_at = sql.Column(sql.DateTime)
+    updated_at = sql.Column(sql.DateTime)
+    expires_at = sql.Column(sql.DateTime)
 
 Base.metadata.drop_all(engine)
 Base.metadata.create_all(engine)
 
-# with session_maker() as session:
-#     user = User(
-#         telegram_id=132456,
-#         name=None
-#     )
-#     vpn = Vpn(
-#         status='trial',
-#         user_id=1
-#     )
-#     session.add(user)
-#     session.commit()
+with session_maker() as session:
+    server = Server(
+        name='loki',
+        lan='172.16.1.0/24',
+        lan_ip='172.16.1.1',
+        wan_ip='185.103.254.12',
+        users_cnt='0'
+    )
+    tariff1 = Tariff(
+        name='Месяц',
+        days=30,
+        price=400
+    )
+    tariff2 = Tariff(
+        name='Четверть',
+        days=90,
+        price=800
+    ) 
+    tariff3 = Tariff(
+        name='Полгода',
+        days=180,
+        price=1200
+    )  
+    session.add(server)
+    session.add(tariff1)
+    session.add(tariff2)
+    session.add(tariff3)
+    session.commit()
 
 # with session_maker() as session:
 #     user = session.query(User).filter(User.id == 1).first()

@@ -11,6 +11,7 @@ from services.vpn import create_vpn, choose_server
 from services.payment import get_pay_url
 from services.decorators import auth
 from loader import logger
+import const
 
 @logger.catch
 async def start(message : types.Message):
@@ -93,7 +94,10 @@ async def profile(message : types.Message, data, **kwargs):
 async def bills(message: types.Message, data, **kwargs):
     vpn = data.get('vpn')
     bills_data = get_pending_bills_data_by_vpn(vpn.id)
-    await message.answer(f'Вот ваши счета на оплату:', reply_markup=pending_bills(bills_data))
+    if bills_data:
+        await message.answer(f'Вот ваши счета на оплату:', reply_markup=pending_bills(bills_data))
+    else:
+        await message.answer(f'У вас нету счетов на оплату')
 
 @logger.catch
 @auth
@@ -129,16 +133,17 @@ async def buy_vpn(message: types.Message, data, **kwargs):
 
 @logger.catch
 async def pay(callback: types.CallbackQuery, callback_data: dict):
-    # logger.debug(f'callback_data={callback_data}')
     tariff = get_tariff(callback_data.get('id'))
     data = get_user_data(callback.from_user.id)
     vpn = data.get('vpn')
-    data = get_pending_bills_data_by_vpn(vpn.id)
-    if len(data) >= 3:
+    bills_data = get_pending_bills_data_by_vpn(vpn.id)
+    if len(bills_data) >= const.MAX_BIILS:
         await callback.message.edit_text(f'Вам выставлено максимальное количество счетов. Вы можете оплатить их в личном кабинете.')
     else:
         bill_id = create_bill(vpn, tariff)
-        await callback.message.edit_text(f'Ваш счет на оплату тарифа {tariff.name} на {tariff.days} дней', reply_markup=pay_keyboard(bill_id))
+        user = data.get('user')
+        logger.info(f'Для пользователя {user.id} выставлен счет {bill_id}')
+        await callback.message.edit_text(f'Ваш счет на сумму {tariff.price}р на {tariff.days} дней', reply_markup=pay_keyboard(bill_id))
 
 @logger.catch
 async def back_tariff(callback: types.CallbackQuery):

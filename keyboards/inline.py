@@ -47,7 +47,7 @@ def pending_bills(bills_data):
     for bill_data in bills_data:
         tariff = bill_data.get('tariff')
         bill = bill_data.get('bill')
-        text = f'Оплата тарифа {tariff.name} на сумму {tariff.price}'
+        text = f'Оплата тарифа "{tariff.name}" на сумму {tariff.price}р'
         btn = InlineKeyboardButton(text=text, url=bill.pay_url)
         markup.row(btn)
     return markup

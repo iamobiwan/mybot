@@ -2,6 +2,7 @@ from .connect import session_maker
 from .models import User, Server, Vpn, Tariff, Bill
 from datetime import datetime, timedelta
 from loader import logger
+import const
 
 def create_user(telegram_id, name):
     """ Создаем пользователя в БД """
@@ -89,7 +90,7 @@ def create_trial_vpn(user_id, server_id, user_ip, pub_key):
         status='pending',
         created_at=datetime.now(),
         updated_at=datetime.now(),
-        expires_at=datetime.now() + timedelta(minutes=15)
+        expires_at=datetime.now() + timedelta(minutes=const.TRIAL_TTL)
     )
     with session_maker() as session:
         session.add(user_vpn)
@@ -111,7 +112,10 @@ def create_bill(vpn, tariff):
         status='pending',
         vpn_id=vpn.id,
         tariff_id=tariff.id,
-        pay_url=pay_url
+        pay_url=pay_url,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        expires_at=datetime.now() + timedelta(minutes=const.TRIAL_TTL)
     )
     with session_maker() as session:
         session.add(bill)

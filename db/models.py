@@ -66,3 +66,6 @@ class Bill(Base):
     vpn_id = sql.Column(sql.Integer, sql.ForeignKey('vpn.id'))
     tariff_id = sql.Column(sql.Integer, sql.ForeignKey('tariff.id'))
     pay_url = sql.Column(sql.String(200))
+    created_at = sql.Column(sql.DateTime)
+    updated_at = sql.Column(sql.DateTime)
+    expires_at = sql.Column(sql.DateTime)
