@@ -10,6 +10,11 @@ class TgBot:
     admin_ids: List[int]
 
 @dataclass
+class Payment:
+    y_wallet: str
+    y_token: str
+
+@dataclass
 class DbConfig:
     host: str
     port: str
@@ -18,16 +23,10 @@ class DbConfig:
     name: str
 
 @dataclass
-class Const:
-    trial_ttl: int
-    bill_ttl: int
-    max_bills: int
-
-@dataclass
 class Config:
     tg_bot: TgBot
     db: DbConfig
-    const: Const
+    pay: Payment
 
 def load_config(path: str = None):
     load_dotenv(path)
@@ -43,9 +42,8 @@ def load_config(path: str = None):
             user=os.getenv('DB_USER'),
             password=os.getenv('DB_PASSWORD'),
         ),
-        const=Const(
-            trial_ttl=const.TRIAL_TTL,
-            bill_ttl=const.BILL_TTL,
-            max_bills=const.MAX_BIILS
+        pay=Payment(
+            y_token=os.getenv('Y_TOKEN'),
+            y_wallet=os.getenv('Y_WALLET')
         )
     )

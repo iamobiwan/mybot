@@ -1,14 +1,15 @@
+from datetime import datetime, timedelta
 from itertools import count
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardRemove
 from db.models import User, Vpn
 from states import RegistrationStates
-from db.queries import create_user, get_user_data, get_tariff, create_bill, get_bill, get_pending_bills_data_by_vpn
+from db.queries import create_user, get_user_data, get_tariff, create_bill, get_bill, get_pending_bills_data_by_vpn, update_item
 from keyboards.reply import start_new_user, start_created_user, start_executed_user
 from keyboards.inline import tariffs_keyboard, pay_keyboard, tariffs_cd, pending_bills
 from services.vpn import create_vpn, choose_server
-from services.payment import get_pay_url
+from services.payment import check_bill
 from services.decorators import auth
 from loader import logger
 import const
@@ -73,6 +74,21 @@ async def profile(message : types.Message, data, **kwargs):
     """
     user: User = data.get('user')
     user_vpn: Vpn = data.get('vpn')
+    bills_data = get_pending_bills_data_by_vpn(user_vpn.id)
+    if bills_data:
+        for bill_data in bills_data:
+            bill = bill_data.get('bill')
+            tariff = bill_data.get('tariff')
+            if check_bill(bill.label):
+                bill.status == 'paid'
+                update_item(bill)
+                if user_vpn.status == 'expired':
+                    user_vpn.expires_at = datetime.now() + timedelta(days=tariff.days)
+                else:
+                    user_vpn.expires_at += timedelta(days=tariff.days)
+                user_vpn.status = 'paid'
+                user_vpn.updated_at = datetime.now() 
+
     text = f'Ваше имя: {user.name}\n'\
            f'Ваш ID: {user.id}\n'
     if not user_vpn:
@@ -87,6 +103,7 @@ async def profile(message : types.Message, data, **kwargs):
     elif user_vpn.status == 'trial':
         text += f'Статус вашего VPN: "Пробный"\n'\
                 f'Срок действия заканчивается: {user_vpn.expires_at.strftime("%d.%m.%Y")}'
+    update_item(user_vpn)
     await message.answer(text)
 
 @logger.catch
@@ -98,6 +115,10 @@ async def bills(message: types.Message, data, **kwargs):
         await message.answer(f'Вот ваши счета на оплату:', reply_markup=pending_bills(bills_data))
     else:
         await message.answer(f'У вас нету счетов на оплату')
+
+@logger.catch
+async def information(message:types.Message):
+    await message.answer(f'Информация')
 
 @logger.catch
 @auth
@@ -161,6 +182,7 @@ def register_user_handlers(dp : Dispatcher):
     dp.register_message_handler(buy_vpn, commands=['ПродлитьVPN'])
     dp.register_message_handler(get_vpn_trial, commands=['ПробнаяВерсия'])
     dp.register_message_handler(instruction, commands=['Инструкция'])
+    dp.register_message_handler(information, commands=['Информация'])
     dp.register_message_handler(profile, commands=['МойПрофиль'])
     dp.register_message_handler(bills, commands=['МоиСчета'])
     dp.register_callback_query_handler(pay, tariffs_cd.filter(tariff='tariff'))

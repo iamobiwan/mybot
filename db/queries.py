@@ -1,7 +1,7 @@
 from .connect import session_maker
 from .models import User, Server, Vpn, Tariff, Bill
 from datetime import datetime, timedelta
-from loader import logger
+from loader import logger, config
 import const
 
 def create_user(telegram_id, name):
@@ -27,12 +27,15 @@ def get_user_data(telegram_id):
         user: User = session.query(User).filter(User.telegram_id == telegram_id).first()
         if user:
             try:
-                vpn: Vpn = user.vpn[0]
+                vpn = user.vpn[0]
+                bills = vpn.bill
             except:
                 vpn = None
+                bills = None
             return {
                 'user': user,
-                'vpn': vpn
+                'vpn': vpn,
+                'bills': bills
             }
 
 def get_user_by_id(user_id):
@@ -106,13 +109,14 @@ def get_tariff(tariff_id):
 
 def create_bill(vpn, tariff):
     label = f'{vpn.id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-    pay_url = f'https://yoomoney.ru/quickpay/confirm.xml?receiver=4100117941854976'\
+    pay_url = f'https://yoomoney.ru/quickpay/confirm.xml?receiver={config.pay.y_wallet}'\
               f'&quickpay-form=shop&sum={tariff.price}&label={label}'
     bill = Bill(
         status='pending',
         vpn_id=vpn.id,
         tariff_id=tariff.id,
         pay_url=pay_url,
+        label=label,
         created_at=datetime.now(),
         updated_at=datetime.now(),
         expires_at=datetime.now() + timedelta(minutes=const.TRIAL_TTL)
