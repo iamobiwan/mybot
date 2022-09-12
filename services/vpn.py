@@ -31,7 +31,7 @@ def generate_user_config(user: User, server: Server):
     priv_key = generate_key()
     pub_key = public_key(priv_key)
     create_trial_vpn(user.id, server.id, user_ip, pub_key)
-    user.status = 'executed'
+    user.status = 'pending'
     user.updated_at = datetime.now()
     server.users_cnt += 1
     with open(f'servers/instance/{server.name}_peer.txt', 'r') as peer:

@@ -9,7 +9,7 @@ from db.queries import create_user, get_user_data, get_tariff, create_bill, get_
 from keyboards.reply import start_new_user, start_created_user, start_executed_user
 from keyboards.inline import tariffs_keyboard, pay_keyboard, tariffs_cd, pending_bills
 from services.vpn import create_vpn, choose_server
-from services.payment import check_bill
+from services.payment import check_bill, test_check_bill, check_pendig_user_bills
 from services.decorators import auth
 from loader import logger
 import const
@@ -74,37 +74,24 @@ async def profile(message : types.Message, data, **kwargs):
     """
     user: User = data.get('user')
     user_vpn: Vpn = data.get('vpn')
-    bills_data = get_pending_bills_data_by_vpn(user_vpn.id)
-    if bills_data:
-        for bill_data in bills_data:
-            bill = bill_data.get('bill')
-            tariff = bill_data.get('tariff')
-            if check_bill(bill.label):
-                bill.status == 'paid'
-                update_item(bill)
-                if user_vpn.status == 'expired':
-                    user_vpn.expires_at = datetime.now() + timedelta(days=tariff.days)
-                else:
-                    user_vpn.expires_at += timedelta(days=tariff.days)
-                user_vpn.status = 'paid'
-                user_vpn.updated_at = datetime.now() 
-
     text = f'Ваше имя: {user.name}\n'\
            f'Ваш ID: {user.id}\n'
-    if not user_vpn:
-        text += f'Статус вашего VPN: Не создан'
-    elif user_vpn.status == 'pending':
-        text += f'Статус вашего VPN: В обработке'
-    elif user_vpn.status == 'paid':
-        text += f'Статус вашего VPN: "Оплачен"\n'\
-                f'Срок действия заканчивается: {user_vpn.expires_at.strftime("%d.%m.%Y")}'
-    elif user_vpn.status == 'expired':
-        text += f'Статус вашего VPN: "Истек"\n'
-    elif user_vpn.status == 'trial':
-        text += f'Статус вашего VPN: "Пробный"\n'\
-                f'Срок действия заканчивается: {user_vpn.expires_at.strftime("%d.%m.%Y")}'
-    update_item(user_vpn)
-    await message.answer(text)
+    if user_vpn:
+        vpn = check_pendig_user_bills(user, user_vpn)
+        if user.status == 'pending':
+            text += f'Статус вашего VPN: В обработке'
+        elif vpn.status == 'paid':
+            text += f'Статус вашего VPN: "Оплачен"\n'\
+                    f'Срок действия заканчивается: {vpn.expires_at.strftime("%d.%m.%Y")}'
+        elif vpn.status == 'expired':
+            text += f'Статус вашего VPN: "Истек"\n'
+        elif vpn.status == 'trial':
+            text += f'Статус вашего VPN: "Пробный"\n'\
+                    f'Срок действия заканчивается: {vpn.expires_at.strftime("%d.%m.%Y")}'
+        update_item(vpn)
+    else:
+        text = 'Статус вашего VPN: Не создан'    
+    await message.answer(f'{text}')
 
 @logger.catch
 @auth
@@ -113,6 +100,7 @@ async def bills(message: types.Message, data, **kwargs):
     bills_data = get_pending_bills_data_by_vpn(vpn.id)
     if bills_data:
         await message.answer(f'Вот ваши счета на оплату:', reply_markup=pending_bills(bills_data))
+        await message.answer(f'Чтобы проверить зачислен ли платеж, нажмите на кнопку "МойПрофиль"')
     else:
         await message.answer(f'У вас нету счетов на оплату')
 

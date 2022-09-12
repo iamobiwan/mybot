@@ -1,10 +1,20 @@
 from db.models import User
-from db.queries import get_vpns, get_user_by_id, update_item, get_all_servers, get_server_vpns, get_pending_vpns, get_server
-from datetime import datetime
+from db.queries import (
+    get_pending_users,
+    get_vpns,
+    get_user_by_id,
+    update_item,
+    get_all_servers,
+    get_server_vpns,
+    get_server,
+    get_pending_bills
+    )
+from datetime import datetime, timedelta
 from loader import bot
 import subprocess
 from keyboards.reply import start_executed_user
 from loader import logger
+from services.payment import check_bill
 
 
 @logger.catch
@@ -57,22 +67,45 @@ async def rebuild_server_config_by_id(server_ids):
     logger.info('Обновление конфигурации на серверах завершено')
 
 @logger.catch
-async def check_pending_vpns():
-    data = get_pending_vpns()
+async def check_pending_users():
+    data = get_pending_users()
     server_ids = []
     if data:
-        logger.info('Есть ожидающие VPN...')
+        logger.info('Есть ожидающие пользователи...')
         for item in data:
             vpn = item.get('vpn')
             user = item.get('user')
-            if vpn.server_id not in server_ids:
-                server_ids.append(vpn.server_id)
-            vpn.status = 'trial'
+            if vpn[0].server_id not in server_ids:
+                server_ids.append(vpn[0].server_id)
+            user.status = 'executed'
             with open(f'users/qr/{user.id}.png', 'rb') as photo:
                 await bot.send_message(user.telegram_id, 'Вот ваш QR код.\nНажмите "Инструкция" для получения подробных указаний по установке')
                 await bot.send_photo(user.telegram_id, photo, reply_markup=start_executed_user)
-            update_item(vpn)
+            update_item(user)
         await rebuild_server_config_by_id(server_ids)
-                
 
-    
+async def check_pending_bills():
+    logger.info('Проверка ожидающих счетов...')
+    bills_data = get_pending_bills()
+    if bills_data:
+        for bill_data in bills_data:
+            vpn = bill_data.get('vpn')
+            bill = bill_data.get('bill')
+            tariff = bill_data.get('tariff')
+            if check_bill(bill.label):
+                bill.status = 'paid'
+                bill.updated_at = datetime.now()
+                logger.info(f'Счет {bill.id} оплачен')
+                update_item(bill)
+                if vpn.status == 'expired':
+                    vpn.expires_at = datetime.now() + timedelta(days=tariff.days)
+                else:
+                    vpn.expires_at += timedelta(days=tariff.days)
+                vpn.status = 'paid'
+                vpn.updated_at = datetime.now()
+                update_item(vpn)
+            else:
+                bill.status = 'expired'
+                bill.updated_at = datetime.now()
+                logger.info(f'Счет {bill.id} аннулирован')
+                update_item(bill)

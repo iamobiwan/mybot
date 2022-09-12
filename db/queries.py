@@ -54,6 +54,17 @@ def get_pending_vpns():
             })
         return data
 
+def get_pending_users():
+    with session_maker() as session:
+        pending_users = session.query(User).filter(User.status == 'pending').all()
+        data = []
+        for user in pending_users:
+            data.append({
+                'vpn': user.vpn,
+                'user': user
+            })
+        return data
+
 def get_vpns():
     """ Получить все vpn """
     with session_maker() as session:
@@ -90,7 +101,7 @@ def create_trial_vpn(user_id, server_id, user_ip, pub_key):
         server_id=server_id,
         ip=user_ip,
         public_key=pub_key,
-        status='pending',
+        status='trial',
         created_at=datetime.now(),
         updated_at=datetime.now(),
         expires_at=datetime.now() + timedelta(minutes=const.TRIAL_TTL)
@@ -119,7 +130,6 @@ def create_bill(vpn, tariff):
         label=label,
         created_at=datetime.now(),
         updated_at=datetime.now(),
-        expires_at=datetime.now() + timedelta(minutes=const.TRIAL_TTL)
     )
     with session_maker() as session:
         session.add(bill)
@@ -140,6 +150,18 @@ def get_pending_bills_data_by_vpn(vpn_id):
         for bill in bills:
             data.append({
                     'bill': bill,
+                    'tariff': bill.tariff
+                })
+        return data
+
+def get_pending_bills():
+    with session_maker() as session:
+        bills = session.query(Bill).filter(Bill.status == 'pending').all()
+        data = []
+        for bill in bills:
+            data.append({
+                    'bill': bill,
+                    'vpn': bill.vpn,
                     'tariff': bill.tariff
                 })
         return data

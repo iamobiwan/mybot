@@ -69,4 +69,3 @@ class Bill(Base):
     label = sql.Column(sql.String(50))
     created_at = sql.Column(sql.DateTime)
     updated_at = sql.Column(sql.DateTime)
-    expires_at = sql.Column(sql.DateTime)
