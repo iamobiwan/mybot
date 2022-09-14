@@ -77,32 +77,32 @@ async def profile(message : types.Message, data, **kwargs):
     text = f'Ваше имя: {user.name}\n'\
            f'Ваш ID: {user.id}\n'
     if user_vpn:
-        vpn = check_pendig_user_bills(user, user_vpn)
+        user_vpn = await check_pendig_user_bills(user, user_vpn)
         if user.status == 'pending':
             text += f'Статус вашего VPN: В обработке'
-        elif vpn.status == 'paid':
+        elif user_vpn.status == 'paid':
             text += f'Статус вашего VPN: "Оплачен"\n'\
-                    f'Срок действия заканчивается: {vpn.expires_at.strftime("%d.%m.%Y")}'
-        elif vpn.status == 'expired':
+                    f'Срок действия заканчивается: {user_vpn.expires_at.strftime("%d.%m.%Y")}'
+        elif user_vpn.status == 'expired':
             text += f'Статус вашего VPN: "Истек"\n'
-        elif vpn.status == 'trial':
+        elif user_vpn.status == 'trial':
             text += f'Статус вашего VPN: "Пробный"\n'\
-                    f'Срок действия заканчивается: {vpn.expires_at.strftime("%d.%m.%Y")}'
-        update_item(vpn)
+                    f'Срок действия заканчивается: {user_vpn.expires_at.strftime("%d.%m.%Y")}'
+        update_item(user_vpn)
     else:
         text = 'Статус вашего VPN: Не создан'    
     await message.answer(f'{text}')
 
-@logger.catch
-@auth
-async def bills(message: types.Message, data, **kwargs):
-    vpn = data.get('vpn')
-    bills_data = get_pending_bills_data_by_vpn(vpn.id)
-    if bills_data:
-        await message.answer(f'Вот ваши счета на оплату:', reply_markup=pending_bills(bills_data))
-        await message.answer(f'Чтобы проверить зачислен ли платеж, нажмите на кнопку "МойПрофиль"')
-    else:
-        await message.answer(f'У вас нету счетов на оплату')
+# @logger.catch
+# @auth
+# async def bills(message: types.Message, data, **kwargs):
+#     vpn = data.get('vpn')
+#     bills_data = get_pending_bills_data_by_vpn(vpn.id)
+#     if bills_data:
+#         await message.answer(f'Вот ваши счета на оплату:', reply_markup=pending_bills(bills_data))
+#         await message.answer(f'Чтобы проверить зачислен ли платеж, нажмите на кнопку "МойПрофиль"')
+#     else:
+#         await message.answer(f'У вас нету счетов на оплату')
 
 @logger.catch
 async def information(message:types.Message):
@@ -145,14 +145,16 @@ async def pay(callback: types.CallbackQuery, callback_data: dict):
     tariff = get_tariff(callback_data.get('id'))
     data = get_user_data(callback.from_user.id)
     vpn = data.get('vpn')
-    bills_data = get_pending_bills_data_by_vpn(vpn.id)
-    if len(bills_data) >= const.MAX_BIILS:
-        await callback.message.edit_text(f'Вам выставлено максимальное количество счетов. Вы можете оплатить их в личном кабинете.')
-    else:
-        bill_id = create_bill(vpn, tariff)
-        user = data.get('user')
-        logger.info(f'Для пользователя {user.id} выставлен счет {bill_id}')
-        await callback.message.edit_text(f'Ваш счет на сумму {tariff.price}р на {tariff.days} дней', reply_markup=pay_keyboard(bill_id))
+    # bills_data = get_pending_bills_data_by_vpn(vpn.id)
+    # if len(bills_data) >= const.MAX_BIILS:
+    #     await callback.message.edit_text(f'Вам выставлено максимальное количество счетов. Вы можете оплатить их в личном кабинете.')
+    # else:
+    bill_id = create_bill(vpn, tariff, callback.message.message_id, callback.message.chat.id)
+    user = data.get('user')
+    logger.info(f'Для пользователя {user.id} выставлен счет {bill_id}')
+    await callback.message.edit_text(
+        f'Ваш счет на сумму {tariff.price}р на {tariff.days} дней.\nСчет действителен до конца дня.',
+        reply_markup=pay_keyboard(bill_id))
 
 @logger.catch
 async def back_tariff(callback: types.CallbackQuery):
@@ -172,7 +174,7 @@ def register_user_handlers(dp : Dispatcher):
     dp.register_message_handler(instruction, commands=['Инструкция'])
     dp.register_message_handler(information, commands=['Информация'])
     dp.register_message_handler(profile, commands=['МойПрофиль'])
-    dp.register_message_handler(bills, commands=['МоиСчета'])
+    # dp.register_message_handler(bills, commands=['МоиСчета'])
     dp.register_callback_query_handler(pay, tariffs_cd.filter(tariff='tariff'))
     dp.register_callback_query_handler(back_tariff, text='back_tariff')
     dp.register_callback_query_handler(cancel_buy, text='cancel_buy')

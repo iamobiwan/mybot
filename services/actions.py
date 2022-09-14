@@ -10,11 +10,10 @@ from db.queries import (
     get_pending_bills
     )
 from datetime import datetime, timedelta
-from loader import bot
+from loader import bot, logger
 import subprocess
 from keyboards.reply import start_executed_user
-from loader import logger
-from services.payment import check_bill
+from services.payment import check_bill, test_check_bill
 
 
 @logger.catch
@@ -68,6 +67,7 @@ async def rebuild_server_config_by_id(server_ids):
 
 @logger.catch
 async def check_pending_users():
+    logger.info('Проверка ожидающих пользователей...')
     data = get_pending_users()
     server_ids = []
     if data:
@@ -81,8 +81,11 @@ async def check_pending_users():
             with open(f'users/qr/{user.id}.png', 'rb') as photo:
                 await bot.send_message(user.telegram_id, 'Вот ваш QR код.\nНажмите "Инструкция" для получения подробных указаний по установке')
                 await bot.send_photo(user.telegram_id, photo, reply_markup=start_executed_user)
+            logger.info(f'Пользователь id={user.id} vpn_id={vpn[0].id} активирован')
             update_item(user)
         await rebuild_server_config_by_id(server_ids)
+    else:
+        logger.info('Нет пользователей в очереди')
 
 async def check_pending_bills():
     logger.info('Проверка ожидающих счетов...')
@@ -92,7 +95,7 @@ async def check_pending_bills():
             vpn = bill_data.get('vpn')
             bill = bill_data.get('bill')
             tariff = bill_data.get('tariff')
-            if check_bill(bill.label):
+            if test_check_bill(bill.label):
                 bill.status = 'paid'
                 bill.updated_at = datetime.now()
                 logger.info(f'Счет {bill.id} оплачен')
@@ -107,5 +110,9 @@ async def check_pending_bills():
             else:
                 bill.status = 'expired'
                 bill.updated_at = datetime.now()
+                await bot.delete_message(chat_id=bill.chat_id, message_id=bill.message_id)
                 logger.info(f'Счет {bill.id} аннулирован')
                 update_item(bill)
+    else:
+        logger.info('Нет ожидающих счетов')
+        

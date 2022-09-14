@@ -75,6 +75,8 @@ class Bill(Base):
     tariff_id = sql.Column(sql.Integer, sql.ForeignKey('tariff.id'))
     pay_url = sql.Column(sql.String(200))
     label = sql.Column(sql.String(50))
+    message_id = sql.Column(sql.BigInteger)
+    chat_id = sql.Column(sql.BigInteger)
     created_at = sql.Column(sql.DateTime)
     updated_at = sql.Column(sql.DateTime)
 

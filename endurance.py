@@ -15,10 +15,10 @@ register_admin_handlers(dp)
 register_user_handlers(dp)
 
 async def scheduler():
-    aioschedule.every(15).seconds.do(check_pending_users)
-    aioschedule.every(2).minutes.do(check_vpn_expire)
-    aioschedule.every(3).minutes.do(rebuild_server_config)
-    aioschedule.every(4).minutes.do(check_pending_bills)
+    aioschedule.every(2).minutes.do(check_pending_users)
+    aioschedule.every(9).minutes.do(check_pending_bills)
+    aioschedule.every(10).minutes.do(check_vpn_expire)
+    aioschedule.every(11).minutes.do(rebuild_server_config)
     # aioschedule.every().day.at('00:01').do(check_vpn_expire)
     # aioschedule.every().day.at('00:02').do(rebuild_server_config)
     while True:

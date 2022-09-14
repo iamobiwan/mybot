@@ -1,3 +1,4 @@
+from email import message
 from .connect import session_maker
 from .models import User, Server, Vpn, Tariff, Bill
 from datetime import datetime, timedelta
@@ -28,14 +29,12 @@ def get_user_data(telegram_id):
         if user:
             try:
                 vpn = user.vpn[0]
-                bills = vpn.bill
             except:
                 vpn = None
                 bills = None
             return {
                 'user': user,
                 'vpn': vpn,
-                'bills': bills
             }
 
 def get_user_by_id(user_id):
@@ -118,7 +117,7 @@ def get_tariff(tariff_id):
     with session_maker() as session:
         return session.query(Tariff).filter(Tariff.id == tariff_id).first()
 
-def create_bill(vpn, tariff):
+def create_bill(vpn, tariff, message_id, chat_id):
     label = f'{vpn.id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
     pay_url = f'https://yoomoney.ru/quickpay/confirm.xml?receiver={config.pay.y_wallet}'\
               f'&quickpay-form=shop&sum={tariff.price}&label={label}'
@@ -128,6 +127,8 @@ def create_bill(vpn, tariff):
         tariff_id=tariff.id,
         pay_url=pay_url,
         label=label,
+        message_id=message_id,
+        chat_id=chat_id,
         created_at=datetime.now(),
         updated_at=datetime.now(),
     )
