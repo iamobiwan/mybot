@@ -1,5 +1,4 @@
-from curses import echo
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship
 import sqlalchemy as sql
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import create_engine
