@@ -3,7 +3,6 @@ servers/
 users/
 db/migrations.py
 
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -134,4 +133,3 @@ dmypy.json
 .pyre/
 
 # db stuff
-db/migration.py
