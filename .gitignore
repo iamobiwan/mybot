@@ -1,6 +1,7 @@
 # ingnore
 servers/
 users/
+db/migrations.py
 
 
 # Byte-compiled / optimized / DLL files
