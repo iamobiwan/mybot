@@ -15,18 +15,19 @@ register_admin_handlers(dp)
 register_user_handlers(dp)
 
 async def scheduler():
-    aioschedule.every(2).minutes.do(check_pending_users)
-    aioschedule.every(9).minutes.do(check_pending_bills)
-    aioschedule.every(10).minutes.do(check_vpn_expire)
-    aioschedule.every(11).minutes.do(rebuild_server_config)
-    # aioschedule.every().day.at('00:01').do(check_vpn_expire)
-    # aioschedule.every().day.at('00:02').do(rebuild_server_config)
+    aioschedule.every(5).minutes.do(check_pending_users)
+    aioschedule.every(10).minutes.do(check_pending_bills)
+    # aioschedule.every(60).seconds.do(check_vpn_expire)
+    # aioschedule.every(75).seconds.do(rebuild_server_config)
+    aioschedule.every().day.at('01:00').do(check_vpn_expire)
+    aioschedule.every().day.at('01:01').do(check_pending_bills)
+    aioschedule.every().day.at('01:02').do(rebuild_server_config)
     while True:
         await aioschedule.run_pending()
         await asyncio.sleep(1)
    
 async def on_startup(_):
-    logger.info(f'Бот запущен... Время: {datetime.now()}')
+    logger.info(f'Бот запущен...')
     asyncio.create_task(scheduler())
 
 

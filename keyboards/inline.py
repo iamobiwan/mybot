@@ -11,7 +11,7 @@ def tariffs_keyboard():
     markup = InlineKeyboardMarkup()
     tariffs = get_all_tariffs()
     for tariff in tariffs:
-        button_text = f'Тариф {tariff.name} на {tariff.days} дней'
+        button_text = f'Тариф на {tariff.days} дней за {tariff.price}₽'
         markup.row(
             InlineKeyboardButton(text=button_text, callback_data = make_tariff_cd(tariff.id))
         )

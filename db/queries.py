@@ -103,7 +103,7 @@ def create_trial_vpn(user_id, server_id, user_ip, pub_key):
         status='trial',
         created_at=datetime.now(),
         updated_at=datetime.now(),
-        expires_at=datetime.now() + timedelta(minutes=const.TRIAL_TTL)
+        expires_at=datetime.now() + timedelta(days=const.TRIAL_TTL)
     )
     with session_maker() as session:
         session.add(user_vpn)
@@ -158,11 +158,20 @@ def get_pending_bills_data_by_vpn(vpn_id):
 def get_pending_bills():
     with session_maker() as session:
         bills = session.query(Bill).filter(Bill.status == 'pending').all()
+        vpns = session.query(Vpn).all()
         data = []
-        for bill in bills:
-            data.append({
-                    'bill': bill,
-                    'vpn': bill.vpn,
-                    'tariff': bill.tariff
-                })
+        vpn_bills = []
+        bills_list = []
+        for vpn in vpns:
+            vpn_bills.append(vpn)
+            for bill in bills:
+                if bill.vpn.id == vpn.id:
+                    bills_list.append({
+                                'bill': bill,
+                                't_days': bill.tariff.days,
+                                't_price': bill.tariff.price
+                            })
+            vpn_bills.append(bills_list)
+            data.append(vpn_bills)
         return data
+        

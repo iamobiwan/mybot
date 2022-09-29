@@ -1,18 +1,31 @@
-from datetime import datetime, timedelta
-from itertools import count
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardRemove
 from db.models import User, Vpn
 from states import RegistrationStates
-from db.queries import create_user, get_user_data, get_tariff, create_bill, get_bill, get_pending_bills_data_by_vpn, update_item
-from keyboards.reply import start_new_user, start_created_user, start_executed_user
-from keyboards.inline import tariffs_keyboard, pay_keyboard, tariffs_cd, pending_bills
-from services.vpn import create_vpn, choose_server
-from services.payment import check_bill, test_check_bill, check_pendig_user_bills
+from db.queries import (
+    create_user,
+    get_user_data,
+    get_tariff,
+    create_bill,
+    update_item
+    )
+from keyboards.reply import (
+    new_user,
+    created_user, 
+    executed_user,
+    pending_user
+    )
+from keyboards.inline import (
+    tariffs_keyboard,
+    pay_keyboard,
+    tariffs_cd,
+    )
+from services.vpn import create_vpn
+from services.payment import check_pendig_user_bills
 from services.decorators import auth
 from loader import logger
-import const
+
 
 @logger.catch
 async def start(message : types.Message):
@@ -23,17 +36,22 @@ async def start(message : types.Message):
         if user.status == 'created':
             await message.answer(
                 f'Привет, {user.name}! Что делаем?',
-                reply_markup=start_created_user
+                reply_markup=created_user
+                )
+        elif user.status == 'pending':
+            await message.answer(
+                f'Привет, {user.name}! Что делаем?',
+                reply_markup=pending_user
                 )
         else:
             await message.answer(
                 f'Привет, {user.name}! Что делаем?',
-                reply_markup=start_executed_user
+                reply_markup=executed_user
                 )
     else:
         await message.answer(
             'Привет! Нужен VPN? Зарегистрируйся!',
-            reply_markup=start_new_user)
+            reply_markup=new_user)
 
 @logger.catch
 async def register(message : types.Message):
@@ -62,7 +80,7 @@ async def register_set_name(message : types.Message, state: FSMContext):
         await RegistrationStates.name.set()
     else:
         create_user(message.from_user.id, name)
-        await message.answer(f'Регистрация завершена, {name}!', reply_markup=start_created_user)
+        await message.answer(f'Регистрация завершена, {name}!', reply_markup=created_user)
         await state.finish()
 
 @logger.catch
@@ -90,7 +108,7 @@ async def profile(message : types.Message, data, **kwargs):
                     f'Срок действия заканчивается: {user_vpn.expires_at.strftime("%d.%m.%Y")}'
         update_item(user_vpn)
     else:
-        text = 'Статус вашего VPN: Не создан'    
+        text += 'Статус вашего VPN: Не создан'    
     await message.answer(f'{text}')
 
 # @logger.catch
@@ -129,11 +147,11 @@ async def get_vpn_trial(message: types.Message, data, **kwargs):
         result = create_vpn(user)
         if result:
             await message.answer('Получили Ваш запрос.\nОжидайте формирования настроек.\nОбычно занимает около 5 минут.',
-            reply_markup=start_executed_user                                    )
+            reply_markup=pending_user)
         else:
             await message.answer('Что-то пошло не так, обратитесь в техническую поддержку @endurancevpnsupport')
     else:
-        await message.answer('Для вас уже создан VPN', reply_markup=start_executed_user)
+        await message.answer('Для вас уже создан VPN', reply_markup=executed_user)
 
 @logger.catch
 @auth
@@ -145,15 +163,11 @@ async def pay(callback: types.CallbackQuery, callback_data: dict):
     tariff = get_tariff(callback_data.get('id'))
     data = get_user_data(callback.from_user.id)
     vpn = data.get('vpn')
-    # bills_data = get_pending_bills_data_by_vpn(vpn.id)
-    # if len(bills_data) >= const.MAX_BIILS:
-    #     await callback.message.edit_text(f'Вам выставлено максимальное количество счетов. Вы можете оплатить их в личном кабинете.')
-    # else:
     bill_id = create_bill(vpn, tariff, callback.message.message_id, callback.message.chat.id)
     user = data.get('user')
     logger.info(f'Для пользователя {user.id} выставлен счет {bill_id}')
     await callback.message.edit_text(
-        f'Ваш счет на сумму {tariff.price}р на {tariff.days} дней.\nСчет действителен до конца дня.',
+        f'Ваш счет на сумму {tariff.price}₽ на {tariff.days} дней.\nСчет действителен до конца дня.',
         reply_markup=pay_keyboard(bill_id))
 
 @logger.catch

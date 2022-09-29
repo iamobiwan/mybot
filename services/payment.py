@@ -29,7 +29,8 @@ def check_bill(label):
         return False
 
 def test_check_bill(label):
-    return random.choice([True, False])
+    return True
+    # return random.choice([True, False])
 
 
 async def check_pendig_user_bills(user, user_vpn):
@@ -50,7 +51,11 @@ async def check_pendig_user_bills(user, user_vpn):
                             f'заканчивается {user_vpn.expires_at.strftime("%d.%m.%Y")}')
                 user_vpn.status = 'paid'
                 user_vpn.updated_at = datetime.now()
-                await bot.delete_message(chat_id=bill.chat_id, message_id=bill.message_id)
+                try:
+                    await bot.delete_message(chat_id=bill.chat_id, message_id=bill.message_id)
+                except:
+                    pass
+                await bot.send_message(chat_id=bill.chat_id, text=f'Ваш счет на сумму {tariff.price}₽. оплачен.')
                 update_item(bill)
         return user_vpn
     else:
