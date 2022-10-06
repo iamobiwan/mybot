@@ -10,6 +10,7 @@ logger.add(
         level='DEBUG',
         rotation='00:00',
     )
+    
 config = load_config()      # конфиг из переменных окружения
 
 storage = MemoryStorage() 

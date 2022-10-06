@@ -6,7 +6,7 @@ import asyncio
 import aioschedule
 from handlers.user import register_user_handlers
 from handlers.admin import register_admin_handlers
-from services.actions import check_pending_users, check_vpn_expire, rebuild_server_config, check_pending_bills
+from services.actions import check_pending_users, check_vpn_expire, rebuild_server_config, check_pending_bills, check_config
 from loader import dp, logger
 from datetime import datetime
 
@@ -15,13 +15,16 @@ register_admin_handlers(dp)
 register_user_handlers(dp)
 
 async def scheduler():
-    aioschedule.every(5).minutes.do(check_pending_users)
-    aioschedule.every(10).minutes.do(check_pending_bills)
-    # aioschedule.every(60).seconds.do(check_vpn_expire)
-    # aioschedule.every(75).seconds.do(rebuild_server_config)
-    aioschedule.every().day.at('01:00').do(check_vpn_expire)
-    aioschedule.every().day.at('01:01').do(check_pending_bills)
-    aioschedule.every().day.at('01:02').do(rebuild_server_config)
+    aioschedule.every(30).seconds.do(check_pending_users)
+    aioschedule.every(45).seconds.do(check_pending_bills)
+    aioschedule.every(55).seconds.do(check_config)
+    aioschedule.every(75).seconds.do(check_vpn_expire)
+    aioschedule.every(85).seconds.do(rebuild_server_config)
+    # aioschedule.every(5).minutes.do(check_pending_users)
+    # aioschedule.every(10).minutes.do(check_pending_bills)
+    # aioschedule.every().day.at('01:00').do(check_pending_bills)
+    # aioschedule.every().day.at('01:01').do(check_vpn_expire)
+    # aioschedule.every().day.at('01:02').do(rebuild_server_config)
     while True:
         await aioschedule.run_pending()
         await asyncio.sleep(1)

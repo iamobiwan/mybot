@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 from loader import bot, logger, config
 import subprocess
 from keyboards.reply import executed_user
-from services.commands import backup_config, check_config, send_config
 from services.payment import check_bill, test_check_bill
 from db.connect import session_maker
 
@@ -38,11 +37,9 @@ async def check_vpn_expire():
 @logger.catch
 async def update_server_config(server: Server):
     """ Генерирует конфиг сервера с пользователями,
-    исключая пользователей с истекшим сроком подписки 
-    и отправляет конфиг на сервер"""
+    исключая пользователей с истекшим сроком подписки """
 
     vpns = get_server_vpns(server.id)
-    date = datetime.now().strftime('%d%m%Y')
     with open(f'servers/instance/{server.name}_wg0.txt', 'r') as file:
         text = file.read()
         for vpn in vpns:
@@ -53,16 +50,7 @@ async def update_server_config(server: Server):
                         f'AllowedIPs = {vpn.ip}\n'
         with open(f"servers/loki/wg0.conf", 'w') as conf:
             conf.write(text)
-    await backup_config(server, date)
-    await send_config(server, date)
-    if await check_config(server, date):
-        logger.info(f'Обновлена конфигурация для сервера {server.name}, ip: {server.wan_ip}')
-    else:
-        for admin in config.tg_bot.admin_ids:
-            await bot.send_message(admin, f'Конфигурация не залилась на сервер {server.name}, ip: {server.wan_ip}')
-        logger.warning(f'Конфигурация сервера {server.name}, ip: {server.wan_ip} не обновилась!')
     
-
 @logger.catch
 async def rebuild_server_config():
     logger.info('Запускаем ежедневное обновление конфигурации на серверах...')
@@ -95,7 +83,6 @@ async def check_pending_users():
                 await bot.send_photo(user.telegram_id, photo, reply_markup=executed_user)
             logger.info(f'Пользователь id={user.id} vpn_id={vpn[0].id} активирован')
             update_item(user)
-        await rebuild_server_config_by_id(server_ids)
     else:
         logger.info('Нет пользователей в очереди')
 
@@ -139,4 +126,34 @@ async def check_pending_bills():
             session.commit()
         else:
             logger.info('Нет ожидающих счетов')
-        
+
+async def check_server_config(server):
+    logger.info(f'Начинаем проверку конфигурации сервера {server.name}...')        
+    remote_sync_config = subprocess.run(
+        ['ssh', '-o ConnectTimeout=1', '-o ConnectionAttempts=1',
+        f'root@{server.wan_ip}',
+        'cat /etc/wireguard/sync.conf'],
+        capture_output=True, text=True)
+    remote_wg0_config = subprocess.run(
+        ['ssh', '-o ConnectTimeout=1', '-o ConnectionAttempts=1',
+        f'root@{server.wan_ip}',
+        'cat /etc/wireguard/wg0.conf'],
+        capture_output=True, text=True)
+    with open(f'servers/{server.name}/sync.conf', 'r') as file:
+        local_sync_config = file.read()
+    with open(f'servers/{server.name}/wg0.conf', 'r') as file:
+        local_wg0_config = file.read()
+    if remote_sync_config.stdout == local_sync_config and remote_wg0_config.stdout == local_wg0_config:
+        return True
+    else:
+        return False
+
+async def check_config():
+    servers = get_all_servers()
+    for server in servers:
+        if await check_server_config(server):
+            logger.info(f'Обновлена конфигурация для сервера {server.name}, ip: {server.wan_ip}')
+        else:
+            for admin in config.tg_bot.admin_ids:
+                bot.send_message(admin, f'Конфигурация не залилась на сервер {server.name}, ip: {server.wan_ip}')
+            logger.warning(f'Конфигурация сервера {server.name}, ip: {server.wan_ip} не обновилась!')
