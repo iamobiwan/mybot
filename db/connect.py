@@ -6,7 +6,7 @@ config = load_config()
 
 Base = declarative_base()
 
-engine = create_engine(f'sqlite:///database.sqlite')
+engine = create_engine(f'sqlite:///db.sqlite')
 
 # engine = create_engine(f'postgresql://{config.db.user}:{config.db.password}@{config.db.host}:{config.db.port}/{config.db.name}')
 
