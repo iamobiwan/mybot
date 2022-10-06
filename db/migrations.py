@@ -1,6 +1,3 @@
-#!venv/bin/python
-
-
 from sqlalchemy.orm import relationship
 import sqlalchemy as sql
 from sqlalchemy.orm import declarative_base, sessionmaker
