@@ -6,8 +6,8 @@ config = load_config()
 
 Base = declarative_base()
 
-engine = create_engine(f'sqlite:///database/db.sqlite')
+# engine = create_engine(f'sqlite:///database/db.sqlite')
 
-# engine = create_engine(f'postgresql://{config.db.user}:{config.db.password}@{config.db.host}:{config.db.port}/{config.db.name}')
+engine = create_engine(f'postgresql://{config.db.user}:{config.db.password}@{config.db.host}:{config.db.port}/{config.db.name}')
 
 session_maker = sessionmaker(bind=engine)

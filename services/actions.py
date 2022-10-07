@@ -155,5 +155,5 @@ async def check_config():
             logger.info(f'Обновлена конфигурация для сервера {server.name}, ip: {server.wan_ip}')
         else:
             for admin in config.tg_bot.admin_ids:
-                bot.send_message(admin, f'Конфигурация не залилась на сервер {server.name}, ip: {server.wan_ip}')
+                await bot.send_message(admin, f'Конфигурация не залилась на сервер {server.name}, ip: {server.wan_ip}')
             logger.warning(f'Конфигурация сервера {server.name}, ip: {server.wan_ip} не обновилась!')
