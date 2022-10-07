@@ -48,40 +48,33 @@ async def update_server_config(server: Server):
                         f'[Peer]\n'\
                         f'PublicKey = {vpn.public_key}\n'\
                         f'AllowedIPs = {vpn.ip}\n'
-        with open(f"servers/loki/wg0.conf", 'w') as conf:
+        with open(f"servers/{server.name}/wg0.conf", 'w') as conf:
             conf.write(text)
+    logger.info(f'Конфигурация сервера {server.name} обновлена.')
     
 @logger.catch
 async def rebuild_server_config():
-    logger.info('Запускаем ежедневное обновление конфигурации на серверах...')
+    logger.info('Запускаем обновление конфигурации на серверах...')
     servers = get_all_servers()
     for server in servers:
         await update_server_config(server)
 
-@logger.catch
-async def rebuild_server_config_by_id(server_ids):
-    logger.info('Обновление конфигурации на серверах для ожидающих пользователей...')
-    for server_id in server_ids:
-        server = get_server(server_id)
-        await update_server_config(server)
 
 @logger.catch
 async def check_pending_users():
     logger.info('Проверка ожидающих пользователей...')
     data = get_pending_users()
-    server_ids = []
     if data:
         logger.info('Есть ожидающие пользователи...')
         for item in data:
             vpn = item.get('vpn')
             user = item.get('user')
-            if vpn[0].server_id not in server_ids:
-                server_ids.append(vpn[0].server_id)
             user.status = 'executed'
             with open(f'users/qr/{user.id}.png', 'rb') as photo:
                 await bot.send_message(user.telegram_id, 'Вот ваш QR код.\nНажмите "Инструкция" для получения подробных указаний по установке')
                 await bot.send_photo(user.telegram_id, photo, reply_markup=executed_user)
             logger.info(f'Пользователь id={user.id} vpn_id={vpn[0].id} активирован')
+            await rebuild_server_config()
             update_item(user)
     else:
         logger.info('Нет пользователей в очереди')
