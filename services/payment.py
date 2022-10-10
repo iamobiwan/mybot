@@ -39,7 +39,7 @@ async def check_pendig_user_bills(user, user_vpn):
         for bill_data in bills_data:
             bill = bill_data.get('bill')
             tariff = bill_data.get('tariff')
-            if test_check_bill(bill.label):
+            if check_bill(bill.label):
                 bill.status = 'paid'
                 bill.updated_at = datetime.now()
                 logger.info(f'Счет bill_id={bill.id} оплачен')
