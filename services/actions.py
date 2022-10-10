@@ -145,7 +145,7 @@ async def check_config():
     servers = get_all_servers()
     for server in servers:
         if await check_server_config(server):
-            logger.info(f'Обновлена конфигурация для сервера {server.name}, ip: {server.wan_ip}')
+            logger.info(f'Конфигурация сервера {server.name}, ip: {server.wan_ip} актуальна')
         else:
             for admin in config.tg_bot.admin_ids:
                 await bot.send_message(admin, f'Конфигурация не залилась на сервер {server.name}, ip: {server.wan_ip}')
