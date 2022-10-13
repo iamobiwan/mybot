@@ -90,7 +90,7 @@ async def check_pending_bills():
                 vpn = vpn_bills[0]
                 for bill_data in bills_data:
                     bill = bill_data.get('bill')
-                    if check_bill(bill.label):
+                    if test_check_bill(bill.label):
                         logger.info(f'Счет bill_id={bill.id} оплачен')
                         bill.status = 'paid'
                         bill.updated_at = datetime.now()
