@@ -12,6 +12,7 @@ from db.queries import (
 from datetime import datetime, timedelta
 from loader import bot, logger, config
 import subprocess
+from paramiko import SSHClient
 from keyboards.reply import executed_user
 from services.payment import check_bill, test_check_bill
 from db.connect import session_maker
@@ -58,7 +59,22 @@ async def rebuild_server_config():
     servers = get_all_servers()
     for server in servers:
         await update_server_config(server)
+        await sync_config(server)
 
+@logger.catch
+async def sync_config(server):
+    result = subprocess.run(['sh', './sync.sh', f'{server.name}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    if result.returncode == 0 and result.stderr == '':
+        logger.info(f'Бэкап и форматирование конфига сервера {server.name} прошло успешно!')
+    else:
+        logger.warning(f'Ошибка при форматировании или бэкапе сервера {server.name}!\n {result.returncode}, {result.stdout}, {result.stderr}')
+    # client = SSHClient()
+    # client.load_system_host_keys()
+    # client.connect(hostname=server.wan_ip, username='root')
+    # try:
+    #     sftp = client.open_sftp()
+    # finally:
+    #     sftp.put(f'servers/{server.name}_wg0')
 
 @logger.catch
 async def check_pending_users():
@@ -121,25 +137,43 @@ async def check_pending_bills():
             logger.info('Нет ожидающих счетов')
 
 async def check_server_config(server):
-    logger.info(f'Начинаем проверку конфигурации сервера {server.name}...')        
-    remote_sync_config = subprocess.run(
-        ['ssh', '-o ConnectTimeout=1', '-o ConnectionAttempts=1',
-        f'root@{server.wan_ip}',
-        'cat /etc/wireguard/sync.conf'],
-        capture_output=True, text=True)
-    remote_wg0_config = subprocess.run(
-        ['ssh', '-o ConnectTimeout=1', '-o ConnectionAttempts=1',
-        f'root@{server.wan_ip}',
-        'cat /etc/wireguard/wg0.conf'],
-        capture_output=True, text=True)
-    with open(f'servers/{server.name}/sync.conf', 'r') as file:
-        local_sync_config = file.read()
-    with open(f'servers/{server.name}/wg0.conf', 'r') as file:
-        local_wg0_config = file.read()
-    if remote_sync_config.stdout == local_sync_config and remote_wg0_config.stdout == local_wg0_config:
-        return True
-    else:
-        return False
+    pass
+    # logger.info(f'Начинаем проверку конфигурации сервера {server.name}...')
+    # client = SSHClient()
+    # client.load_system_host_keys()
+    # client.connect(hostname=server.wan_ip, username='root')
+
+    # stdin, stdout, stderr = client.exec_command('hostname')
+
+    # print(stdout.channel.recv_exit_status())
+    # print(stdout.read().decode('utf8'))
+
+    # try:
+    #     sftp = client.open_sftp()
+    # finally:
+    #     remote_file = sftp.open('/etc/wireguard/wg0.conf')
+    #     text = remote_file.read()
+    #     print(text)
+    #     remote_file.close()
+    #     client.close()      
+    # remote_sync_config = subprocess.run(
+    #     ['ssh', '-o ConnectTimeout=1', '-o ConnectionAttempts=1',
+    #     f'root@{server.wan_ip}',
+    #     'cat /etc/wireguard/sync.conf'],
+    #     capture_output=True, text=True)
+    # remote_wg0_config = subprocess.run(
+    #     ['ssh', '-o ConnectTimeout=1', '-o ConnectionAttempts=1',
+    #     f'root@{server.wan_ip}',
+    #     'cat /etc/wireguard/wg0.conf'],
+    #     capture_output=True, text=True)
+    # with open(f'servers/{server.name}/sync.conf', 'r') as file:
+    #     local_sync_config = file.read()
+    # with open(f'servers/{server.name}/wg0.conf', 'r') as file:
+    #     local_wg0_config = file.read()
+    # if remote_sync_config.stdout == local_sync_config and remote_wg0_config.stdout == local_wg0_config:
+    #     return True
+    # else:
+    #     return False
 
 async def check_config():
     servers = get_all_servers()
