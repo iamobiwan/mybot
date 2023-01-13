@@ -1,57 +1,69 @@
 from db.models import Server, User
-from db.queries import (
-    get_pending_users,
+from db.queries.vpn import (
     get_vpns,
-    get_user_by_id,
-    update_item,
     get_all_servers,
     get_server_vpns,
     get_server,
-    get_pending_bills
+    get_pending_users
     )
+from db.queries.common import update_item
+from db.queries.users import get_user_by_id, get_users
+from keyboards.inline import subscribed_user_keyboard, subcribe_notification
 from datetime import datetime, timedelta
 from loader import bot, logger, config
-import subprocess
-from paramiko import SSHClient
-from keyboards.reply import executed_user
 from services.payment import check_bill, test_check_bill
-from db.connect import session_maker
+from services.sync import sync_config, check_config
+import const
 
 
 @logger.catch
 async def check_vpn_expire():
     logger.info('Запускаем проверку на истечение срока подписки...')
-    vpns = get_vpns()
+    users = get_users()
     date = datetime.now()
-    if vpns:
-        for vpn in vpns:
-            if vpn.status == 'trial' or vpn.status == 'paid':
-                if date > vpn.expires_at:
-                    user = get_user_by_id(vpn.user_id)
-                    logger.info(f'У пользователя {user.id} {user.name} истек срок действия VPN (был {vpn.status})')
-                    vpn.status = 'expired'
-                    update_item(vpn)
-                    await bot.send_message(user.telegram_id, 'Срок действия VPN истек. Продлите подписку.')
-    else:
-        logger.info('Все подписки актульны')
+    for user in users:
+        if user.status == 'trial' or user.status == 'subscribed':
+            if date > user.expires_at:
+                # user = get_user_by_id(vpn.user_id)
+                logger.info(f'У пользователя {user.id} {user.name} истек срок действия VPN (был {user.status})')
+                user.status = 'expired'
+                user.user_status = 'Подписка закончилась'
+                await bot.send_message(
+                    user.telegram_id,
+                    f'Срок действия Вашей подписки истек. \U00002639\n\n'\
+                    f'Чтобы продолжить пользоваться VPN продлите подписку',
+                    reply_markup=subscribed_user_keyboard(user)    
+                        )
+                update_item(user)
+            else:
+                diff: timedelta = user.expires_at - date
+                if diff.days == const.FIRST_SUBSCRIBE_NOTIFICATION or diff.days == const.SECOND_SUBSCRIBE_NOTIFICATION:
+                    await bot.send_message(
+                    user.telegram_id,
+                    f'Срок действия Вашей подписки скоро закончится.\n'\
+                    f'Дата окончания: {user.expires_at.strftime("%d.%m.%Y")}\n\n'
+                    f'Чтобы продолжить пользоваться VPN продлите подписку',
+                    reply_markup=subcribe_notification()    
+                        )
+        # logger.info('Все подписки актульны')
 
 @logger.catch
 async def update_server_config(server: Server):
     """ Генерирует конфиг сервера с пользователями,
     исключая пользователей с истекшим сроком подписки """
-
     vpns = get_server_vpns(server.id)
     with open(f'servers/instance/{server.name}_wg0.txt', 'r') as file:
         text = file.read()
         for vpn in vpns:
-            if vpn.status != 'expired':
+            user = get_user_by_id(vpn.user_id)
+            if user.status != 'expired':
                 text += f'\n#user_{vpn.user_id}\n'\
                         f'[Peer]\n'\
                         f'PublicKey = {vpn.public_key}\n'\
                         f'AllowedIPs = {vpn.ip}\n'
         with open(f"servers/{server.name}/wg0.conf", 'w') as conf:
             conf.write(text)
-    logger.info(f'Конфигурация сервера {server.name} обновлена.')
+    logger.info(f'Конфигурация сервера {server.name} сгенерирована.')
     
 @logger.catch
 async def rebuild_server_config():
@@ -60,127 +72,70 @@ async def rebuild_server_config():
     for server in servers:
         await update_server_config(server)
         await sync_config(server)
-
-@logger.catch
-async def sync_config(server):
-    result = subprocess.run(['sh', './sync.sh', f'{server.name}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    if result.returncode == 0 and result.stderr == '':
-        logger.info(f'Бэкап и форматирование конфига сервера {server.name} прошло успешно!')
-    else:
-        logger.warning(f'Ошибка при форматировании или бэкапе сервера {server.name}!\n {result.returncode}, {result.stdout}, {result.stderr}')
-    # client = SSHClient()
-    # client.load_system_host_keys()
-    # client.connect(hostname=server.wan_ip, username='root')
-    # try:
-    #     sftp = client.open_sftp()
-    # finally:
-    #     sftp.put(f'servers/{server.name}_wg0')
+        await check_config(server)
 
 @logger.catch
 async def check_pending_users():
     logger.info('Проверка ожидающих пользователей...')
-    data = get_pending_users()
-    if data:
+    pending_users = get_pending_users()
+    if pending_users:
         logger.info('Есть ожидающие пользователи...')
-        for item in data:
-            vpn = item.get('vpn')
-            user = item.get('user')
-            user.status = 'executed'
-            with open(f'users/qr/{user.id}.png', 'rb') as photo:
-                await bot.send_message(user.telegram_id, 'Вот ваш QR код.\nНажмите "Инструкция" для получения подробных указаний по установке')
-                await bot.send_photo(user.telegram_id, photo, reply_markup=executed_user)
-            logger.info(f'Пользователь id={user.id} vpn_id={vpn[0].id} активирован')
-            await rebuild_server_config()
+        for user in pending_users:
+            await send_settings(user)
+            user.vpn_status = 'activated'
             update_item(user)
+        await rebuild_server_config()
     else:
         logger.info('Нет пользователей в очереди')
 
 @logger.catch
-async def check_pending_bills():
-    logger.info('Проверка ожидающих счетов...')
-    with session_maker() as session:
-        vpns_bills = get_pending_bills()
-        if vpns_bills:
-            for vpn_bills in vpns_bills:
-                bills_data = vpn_bills[1]
-                vpn = vpn_bills[0]
-                for bill_data in bills_data:
-                    bill = bill_data.get('bill')
-                    if test_check_bill(bill.label):
-                        logger.info(f'Счет bill_id={bill.id} оплачен')
-                        bill.status = 'paid'
-                        bill.updated_at = datetime.now()
-                        try:
-                            await bot.delete_message(chat_id=bill.chat_id, message_id=bill.message_id)
-                        except:
-                            pass
-                        await bot.send_message(chat_id=bill.chat_id, text=f'Ваш счет на сумму {bill_data.get("t_price")}₽. оплачен.')
-                        if vpn.status == 'expired':
-                            vpn.expires_at = datetime.now() + timedelta(days=bill_data.get('t_days'))
-                        else:
-                            vpn.expires_at += timedelta(days=bill_data.get('t_days'))
-                        vpn.status = 'paid'
-                        vpn.updated_at = datetime.now()
-                        session.add(bill)
-                    else:
-                        bill.status = 'expired'
-                        bill.updated_at = datetime.now()
-                        try:
-                            await bot.delete_message(chat_id=bill.chat_id, message_id=bill.message_id)
-                        except:
-                            pass
-                        logger.info(f'Счет {bill.id} аннулирован')
-                        session.add(bill)
-                session.add(vpn)
-            session.commit()
-        else:
-            logger.info('Нет ожидающих счетов')
+async def send_settings(user):
+    with open(f'users/qr/{user.id}.png', 'rb') as photo:
+        await bot.send_message(
+            user.telegram_id,
+            'Вот ваши настройки в виде QR кода.\n\n'\
+            'Нажмите /instruction для получения подробных указаний по установке'
+            )
+        await bot.send_photo(user.telegram_id, photo)
+        logger.info(f'Пользователь ID {user.id} получил свои настройки')
 
-async def check_server_config(server):
-    pass
-    # logger.info(f'Начинаем проверку конфигурации сервера {server.name}...')
-    # client = SSHClient()
-    # client.load_system_host_keys()
-    # client.connect(hostname=server.wan_ip, username='root')
-
-    # stdin, stdout, stderr = client.exec_command('hostname')
-
-    # print(stdout.channel.recv_exit_status())
-    # print(stdout.read().decode('utf8'))
-
-    # try:
-    #     sftp = client.open_sftp()
-    # finally:
-    #     remote_file = sftp.open('/etc/wireguard/wg0.conf')
-    #     text = remote_file.read()
-    #     print(text)
-    #     remote_file.close()
-    #     client.close()      
-    # remote_sync_config = subprocess.run(
-    #     ['ssh', '-o ConnectTimeout=1', '-o ConnectionAttempts=1',
-    #     f'root@{server.wan_ip}',
-    #     'cat /etc/wireguard/sync.conf'],
-    #     capture_output=True, text=True)
-    # remote_wg0_config = subprocess.run(
-    #     ['ssh', '-o ConnectTimeout=1', '-o ConnectionAttempts=1',
-    #     f'root@{server.wan_ip}',
-    #     'cat /etc/wireguard/wg0.conf'],
-    #     capture_output=True, text=True)
-    # with open(f'servers/{server.name}/sync.conf', 'r') as file:
-    #     local_sync_config = file.read()
-    # with open(f'servers/{server.name}/wg0.conf', 'r') as file:
-    #     local_wg0_config = file.read()
-    # if remote_sync_config.stdout == local_sync_config and remote_wg0_config.stdout == local_wg0_config:
-    #     return True
-    # else:
-    #     return False
-
-async def check_config():
-    servers = get_all_servers()
-    for server in servers:
-        if await check_server_config(server):
-            logger.info(f'Конфигурация сервера {server.name}, ip: {server.wan_ip} актуальна')
-        else:
-            for admin in config.tg_bot.admin_ids:
-                await bot.send_message(admin, f'Конфигурация не залилась на сервер {server.name}, ip: {server.wan_ip}')
-            logger.warning(f'Конфигурация сервера {server.name}, ip: {server.wan_ip} не обновилась!')
+# @logger.catch
+# async def check_pending_bills():
+#     logger.info('Проверка ожидающих счетов...')
+#     with session_maker() as session:
+#         vpns_bills = get_pending_bills()
+#         if vpns_bills:
+#             for vpn_bills in vpns_bills:
+#                 bills_data = vpn_bills[1]
+#                 vpn = vpn_bills[0]
+#                 for bill_data in bills_data:
+#                     bill = bill_data.get('bill')
+#                     if test_check_bill(bill.label):
+#                         logger.info(f'Счет bill_id={bill.id} оплачен')
+#                         bill.status = 'paid'
+#                         bill.updated_at = datetime.now()
+#                         try:
+#                             await bot.delete_message(chat_id=bill.chat_id, message_id=bill.message_id)
+#                         except:
+#                             pass
+#                         await bot.send_message(chat_id=bill.chat_id, text=f'Ваш счет на сумму {bill_data.get("t_price")}₽. оплачен.')
+#                         if vpn.status == 'expired':
+#                             vpn.expires_at = datetime.now() + timedelta(days=bill_data.get('t_days'))
+#                         else:
+#                             vpn.expires_at += timedelta(days=bill_data.get('t_days'))
+#                         vpn.status = 'paid'
+#                         vpn.updated_at = datetime.now()
+#                         session.add(bill)
+#                     else:
+#                         bill.status = 'expired'
+#                         bill.updated_at = datetime.now()
+#                         try:
+#                             await bot.delete_message(chat_id=bill.chat_id, message_id=bill.message_id)
+#                         except:
+#                             pass
+#                         logger.info(f'Счет {bill.id} аннулирован')
+#                         session.add(bill)
+#                 session.add(vpn)
+#             session.commit()
+#         else:
+#             logger.info('Нет ожидающих счетов')

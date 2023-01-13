@@ -10,7 +10,7 @@ class TgBot:
     admin_ids: List[int]
 
 @dataclass
-class Payment:
+class Donate:
     y_wallet: str
     y_token: str
 
@@ -26,7 +26,7 @@ class DbConfig:
 class Config:
     tg_bot: TgBot
     db: DbConfig
-    pay: Payment
+    donate: Donate
 
 def load_config(path: str = None):
     load_dotenv(path)
@@ -42,7 +42,7 @@ def load_config(path: str = None):
             user=os.getenv('DB_USER'),
             password=os.getenv('DB_PASSWORD'),
         ),
-        pay=Payment(
+        donate=Donate(
             y_token=os.getenv('Y_TOKEN'),
             y_wallet=os.getenv('Y_WALLET')
         )

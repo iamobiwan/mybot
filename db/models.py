@@ -10,10 +10,13 @@ class User(Base):
     telegram_id = sql.Column(sql.BigInteger, nullable=False)
     name = sql.Column(sql.String(30))
     status = sql.Column(sql.String(10), default='created')
+    user_status = sql.Column(sql.String(30), default='Без подписки')
+    vpn_status = sql.Column(sql.String(15), default='not requested')
     created_at = sql.Column(sql.DateTime)
     updated_at = sql.Column(sql.DateTime)
-
+    expires_at = sql.Column(sql.DateTime, nullable=True)
     vpn = relationship('Vpn', backref='user')
+    order = relationship('Order', backref='user')
 
     
 class Server(Base):
@@ -28,8 +31,8 @@ class Server(Base):
 
     vpn = relationship('Vpn', backref='server')
 
-    def __repr__(self) -> str:
-        return f'{self.name}'
+    # def __repr__(self) -> str:
+    #     return f'{self.name}'
 
 class Vpn(Base):
     __tablename__ = 'vpn'
@@ -39,35 +42,29 @@ class Vpn(Base):
     server_id = sql.Column(sql.Integer, sql.ForeignKey('server.id', ondelete='cascade'))
     ip = sql.Column(sql.String(18))
     public_key = sql.Column(sql.String(50))
-    status = sql.Column(sql.String(10))
     created_at = sql.Column(sql.DateTime)
     updated_at = sql.Column(sql.DateTime)
-    expires_at = sql.Column(sql.DateTime)
-
-    bill = relationship('Bill', backref='vpn')
 
 
-class Tariff(Base):
-    __tablename__ = 'tariff'
+class Plan(Base):
+    __tablename__ = 'plan'
 
     id = sql.Column(sql.Integer, primary_key=True)
     name = sql.Column(sql.String(30))
     days = sql.Column(sql.Integer)
-    price = sql.Column(sql.Integer)
-
-    bill = relationship('Bill', backref='tariff')
+    amount = sql.Column(sql.Integer)
 
 
-class Bill(Base):
-    __tablename__ = 'bill'
+class Order(Base):
+    __tablename__ = 'order'
 
     id = sql.Column(sql.Integer, primary_key=True)
     status = sql.Column(sql.String(10))
-    vpn_id = sql.Column(sql.Integer, sql.ForeignKey('vpn.id'))
-    tariff_id = sql.Column(sql.Integer, sql.ForeignKey('tariff.id'))
-    pay_url = sql.Column(sql.String(200))
-    label = sql.Column(sql.String(50))
-    message_id = sql.Column(sql.BigInteger)
-    chat_id = sql.Column(sql.BigInteger)
+    user_status = sql.Column(sql.String(15), nullable=True)
+    user_id = sql.Column(sql.Integer, sql.ForeignKey('user.id'))
+    donate_url = sql.Column(sql.String(200), nullable=True)
+    label = sql.Column(sql.String(50), nullable=True)
+    plan_days = sql.Column(sql.Integer)
+    amount = sql.Column(sql.Integer)
     created_at = sql.Column(sql.DateTime)
     updated_at = sql.Column(sql.DateTime)
