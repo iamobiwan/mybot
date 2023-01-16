@@ -5,7 +5,8 @@ from db.models import User, Vpn
 from states import RegistrationStates
 from db.queries.common import update_item
 from keyboards.inline import (
-    back_main
+    back_main,
+    unsubscribed_keyboard
     )
 from services.decorators import auth
 from services.vpn import generate_user_config
@@ -41,8 +42,32 @@ async def get_settings_callback(callback: types.CallbackQuery, user, **kwargs):
 @logger.catch
 @auth
 async def get_settings(message : types.Message, user, **kwargs):
-    await message.delete()
-    await send_settings(user)
+    if user:
+        if user.vpn_status == 'not requested':
+            await message.answer(
+                f'Мы получили Ваш запрос на формирование настроек.\n\n'\
+                f'В течение 5 минут бот обработает Ваш запрос и пришлет настройки\n\n'
+                f'Ожидайте...',
+                parse_mode='Markdown',
+                reply_markup=back_main()
+                )
+            generate_user_config(user)
+        elif user.vpn_status == 'pending':
+            await message.answer(
+                f'Ваши настройки формируются.\n\n'\
+                f'В течение 5 минут бот обработает Ваш запрос и пришлет настройки\n\n'
+                f'Ожидайте...',
+                parse_mode='Markdown',
+                reply_markup=back_main()
+                )
+        else:
+            await send_settings(user)
+    else:
+        await message.answer(
+                f'Для доступа ко всем функциям бота оформите подписку!\n\n',
+                parse_mode='Markdown',
+                reply_markup=unsubscribed_keyboard(user)
+                )
 
 
 

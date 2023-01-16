@@ -63,7 +63,6 @@ class Order(Base):
     user_status = sql.Column(sql.String(15), nullable=True)
     user_id = sql.Column(sql.Integer, sql.ForeignKey('user.id'))
     donate_url = sql.Column(sql.String(200), nullable=True)
-    label = sql.Column(sql.String(50), nullable=True)
     plan_days = sql.Column(sql.Integer)
     amount = sql.Column(sql.Integer)
     created_at = sql.Column(sql.DateTime)

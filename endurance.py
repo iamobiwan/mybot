@@ -5,7 +5,7 @@ from handlers.user import register_user_handlers
 from handlers.admin import register_admin_handlers
 from handlers.donate import register_donate_handlers
 from handlers.vpn import register_vpn_handlers
-from services.actions import check_pending_users, check_vpn_expire, rebuild_server_config, check_config, sync_config
+from services.actions import check_pending_users, check_sub_expire, rebuild_server_config, check_pending_orders
 from loader import dp, logger
 
 
@@ -18,9 +18,9 @@ register_vpn_handlers(dp)
 # регулярные задания
 async def scheduler():
     aioschedule.every(30).seconds.do(check_pending_users)
-    aioschedule.every(60).seconds.do(rebuild_server_config)
-    aioschedule.every(45).seconds.do(check_vpn_expire)
-    # aioschedule.every(45).seconds.do(check_pending_bills)
+    aioschedule.every(45).seconds.do(check_sub_expire)
+    aioschedule.every(60).seconds.do(check_pending_orders)
+    aioschedule.every(120).seconds.do(rebuild_server_config)
     # aioschedule.every(5).minutes.do(check_pending_users)
     # aioschedule.every(8).minutes.do(check_pending_bills)
     # aioschedule.every().day.at('01:00').do(check_vpn_expire)

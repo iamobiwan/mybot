@@ -2,6 +2,7 @@ from ..connect import session_maker
 from ..models import Order
 from datetime import datetime
 from loader import logger, config
+from services.donate import check_order, test_check_order
 
 def create_order(user, plan):
     order = Order(
@@ -16,10 +17,8 @@ def create_order(user, plan):
     with session_maker() as session:
         session.add(order)
         session.commit()
-        label = f'{order.id}'
         donate_url = f'https://yoomoney.ru/quickpay/confirm.xml?receiver={config.donate.y_wallet}'\
-                f'&quickpay-form=shop&sum={plan.amount}&label={label}'
-        order.label = label
+                f'&quickpay-form=shop&sum={plan.amount}&label={order.id}'
         order.donate_url = donate_url
         session.add(order)
         session.commit()
@@ -47,5 +46,12 @@ def get_user_orders(user_id):
     with session_maker() as session:
         orders = session.query(Order).filter(
             Order.user_id == user_id,
+            ).all()
+        return orders
+
+def get_pending_orders():
+    with session_maker() as session:
+        orders = session.query(Order).filter(
+            Order.status == 'pending',
             ).all()
         return orders

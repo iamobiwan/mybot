@@ -113,7 +113,11 @@ def orders_keyboard(user):
     markup = InlineKeyboardMarkup()
     if orders:
         for order in orders:
-            button_text = f'\U0000231b №{order.id} от {order.created_at.strftime("%d.%m.%Y %H:%M")} МСК {order.amount}₽'
+            if order.status == 'success':
+                smile = '\U00002705'
+            else:
+                smile = '\U0000231b'
+            button_text = f'{smile} №{order.id} от {order.created_at.strftime("%d.%m.%Y %H:%M")} МСК {order.amount}₽'
             markup.row(
                 InlineKeyboardButton(text=button_text, callback_data=order_callback.new(action='get', order_id=order.id))
             )
