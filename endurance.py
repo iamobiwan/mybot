@@ -17,14 +17,14 @@ register_vpn_handlers(dp)
 
 # регулярные задания
 async def scheduler():
-    aioschedule.every(30).seconds.do(check_pending_users)
-    aioschedule.every(45).seconds.do(check_sub_expire)
-    aioschedule.every(60).seconds.do(check_pending_orders)
-    aioschedule.every(120).seconds.do(rebuild_server_config)
-    # aioschedule.every(5).minutes.do(check_pending_users)
-    # aioschedule.every(8).minutes.do(check_pending_bills)
-    # aioschedule.every().day.at('01:00').do(check_vpn_expire)
-    # aioschedule.every().day.at('01:01').do(rebuild_server_config)
+    # aioschedule.every(30).seconds.do(check_pending_users)
+    # aioschedule.every(45).seconds.do(check_sub_expire)
+    # aioschedule.every(60).seconds.do(check_pending_orders)
+    # aioschedule.every(120).seconds.do(rebuild_server_config)
+    aioschedule.every(4).minutes.do(check_pending_users)
+    aioschedule.every(5).minutes.do(check_pending_orders)
+    aioschedule.every().day.at('01:00').do(check_sub_expire)
+    aioschedule.every().day.at('01:02').do(rebuild_server_config)
     while True:
         await aioschedule.run_pending()
         await asyncio.sleep(1)
