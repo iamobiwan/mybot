@@ -1,53 +1,130 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.callback_data import CallbackData
-from db.queries import get_all_tariffs, get_bill
+from db.queries.plan import get_all_plans
+from db.queries.orders import get_user_orders
+from .callback import plan_callback, order_callback
 
-tariffs_cd = CallbackData('vpn', 'tariff', 'id')
 
-def make_tariff_cd(id):
-    return tariffs_cd.new(tariff='tariff',id=id)
+def  start_keyboard(user):
+    if not user or user.status == 'created':
+        return unsubscribed_keyboard(user)
+    else:
+        return subscribed_user_keyboard(user)
 
-def tariffs_keyboard():
+
+def unsubscribed_keyboard(user):
+    if user:
+        orders = get_user_orders(user.id)
+    else:
+        orders = None
     markup = InlineKeyboardMarkup()
-    tariffs = get_all_tariffs()
-    for tariff in tariffs:
-        button_text = f'Тариф на {tariff.days} дней за {tariff.price}₽'
+    markup.row(
+            InlineKeyboardButton(text='\U0000231B Активировать пробный период', callback_data = 'activate_trial')
+        )
+    markup.row(
+            InlineKeyboardButton(text='\U00002b50 Оформить подписку', callback_data = 'get_subscribe')
+        )
+    if orders:
         markup.row(
-            InlineKeyboardButton(text=button_text, callback_data = make_tariff_cd(tariff.id))
+            InlineKeyboardButton(text='\U0001f4cb Мои заказы', callback_data = 'show_orders')
+        )
+    return markup
+
+def subscribed_user_keyboard(user):
+    markup = InlineKeyboardMarkup()
+    if user.status != 'expired':
+        markup.row(
+            InlineKeyboardButton(
+                text='\U0001f527 Получить настройки',
+                callback_data='get_settings'
+            )
         )
     markup.row(
         InlineKeyboardButton(
-            text='Отмена',
-            callback_data='cancel_buy'
+            text='\U00002b50 Продлить подписку',
+            callback_data='get_subscribe'
+        )
+    )
+    markup.row(
+        InlineKeyboardButton(
+            text='\U0001f4cb Мои заказы',
+            callback_data='show_orders'
         )
     )
     return markup
 
-def pay_keyboard(bill_id):
-    bill = get_bill(bill_id)
+def subcribe_notification():
     markup = InlineKeyboardMarkup()
-    btn = InlineKeyboardButton(text='Оплатить', url=bill.pay_url)
-    markup.insert(btn)
     markup.row(
         InlineKeyboardButton(
-                text='Назад',
-                callback_data='back_tariff'
-            )
-    )
-    markup.row(
-        InlineKeyboardButton(
-                text='Отмена',
-                callback_data='cancel_buy'
-            )
+            text='\U00002b50 Продлить подписку',
+            callback_data='get_subscribe'
+        )
     )
     return markup
 
-def pending_bills(bills_data):
+def back_main():
     markup = InlineKeyboardMarkup()
-    for bill_data in bills_data:
-        tariff = bill_data.get('tariff')
-        bill = bill_data.get('bill')
-        text = f'Оплата тарифа "{tariff.name}" на сумму {tariff.price}р'
-        btn = InlineKeyboardButton(text=text, url=bill.pay_url)
-        markup.row(btn)
+    markup.row(
+        InlineKeyboardButton(
+            text='\U000025c0 Назад',
+            callback_data='main_callback'
+        )
+    )
+    return markup
+
+def plans_keyboard():
+    markup = InlineKeyboardMarkup()
+    plans = get_all_plans()
+    for plan in plans:
+        button_text = f'{plan.days} дней за {plan.amount}₽'
+        markup.row(
+            InlineKeyboardButton(text=button_text, callback_data=plan_callback.new(plan_id=plan.id))
+        )
+    markup.row(
+        InlineKeyboardButton(
+            text='\U000025c0 Назад',
+            callback_data='main_callback'
+        )
+    )
+    return markup
+
+def donate_keyboard(order, callback):
+    markup = InlineKeyboardMarkup()
+    markup.insert(InlineKeyboardButton(text='\U0001f4b0 Донатить', url=order.donate_url))
+    markup.row(InlineKeyboardButton(text='\U0001f5d1 Удалить', callback_data=order_callback.new(action='delete', order_id=order.id)))
+    if 'plan' in callback.data:
+        markup.row(
+        InlineKeyboardButton(
+                text='\U000025c0 Назад',
+                callback_data='main_callback'
+            )
+    )
+    else:
+        markup.row(
+            InlineKeyboardButton(
+                    text='\U000025c0 Назад',
+                    callback_data='show_orders'
+                )
+        )
+    return markup
+
+def orders_keyboard(user):
+    orders = get_user_orders(user.id)
+    markup = InlineKeyboardMarkup()
+    if orders:
+        for order in orders:
+            if order.status == 'success':
+                smile = '\U00002705'
+            else:
+                smile = '\U0000231b'
+            button_text = f'{smile} №{order.id} от {order.created_at.strftime("%d.%m.%Y %H:%M")} МСК {order.amount}₽'
+            markup.row(
+                InlineKeyboardButton(text=button_text, callback_data=order_callback.new(action='get', order_id=order.id))
+            )
+    markup.row(
+        InlineKeyboardButton(
+            text='\U000025c0 Назад',
+            callback_data='main_callback'
+        )
+    )
     return markup
