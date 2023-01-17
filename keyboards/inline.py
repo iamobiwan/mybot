@@ -90,7 +90,8 @@ def plans_keyboard():
 
 def donate_keyboard(order, callback):
     markup = InlineKeyboardMarkup()
-    markup.insert(InlineKeyboardButton(text='\U0001f4b0 Донатить', url=order.donate_url))
+    if order.status != 'success':
+        markup.insert(InlineKeyboardButton(text='\U0001f4b0 Донатить', url=order.donate_url))
     markup.row(InlineKeyboardButton(text='\U0001f5d1 Удалить', callback_data=order_callback.new(action='delete', order_id=order.id)))
     if 'plan' in callback.data:
         markup.row(
