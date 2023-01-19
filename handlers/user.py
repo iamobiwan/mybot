@@ -1,8 +1,6 @@
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardRemove
-from db.models import User, Vpn
-from states import RegistrationStates
 from db.queries.users import create_user, get_user
 from db.queries.common import update_item
 from keyboards.inline import (
@@ -73,6 +71,7 @@ async def main_callback(callback: types.CallbackQuery, user, **kwagrs):
         text = f'Добро пожаловать, {callback.from_user.full_name}!\n\n'\
             f'Выберите команду из списка ниже или нажмите "Меню" '\
             f'для того, чтобы увидеть весь список команд\n\n'\
+            f'Чтобы начать пользоваться VPN получите настройки /getsettings и следуйте инструкции\n\n'\
             f'Статус вашей подписки: {user.user_status}\n'
         if user.status == 'expired': 
             text += f'\nБот работает по подписке. Для использования VPN продлите подписку'
@@ -81,8 +80,11 @@ async def main_callback(callback: types.CallbackQuery, user, **kwagrs):
         await callback.message.edit_text(text, reply_markup=subscribed_user_keyboard(user))
 
 @logger.catch
-async def get_subscribe(callback: types.CallbackQuery):
-    await callback.message.edit_text('Выберите длительность подписки:', reply_markup=plans_keyboard())
+@auth
+async def get_subscribe(callback: types.CallbackQuery, user, **kwargs):
+    if not user:
+        user = create_user(callback.from_user.id, callback.from_user.full_name)
+    await callback.message.edit_text('Выберите длительность подписки:', reply_markup=plans_keyboard(user))
 
 @logger.catch
 @auth

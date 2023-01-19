@@ -12,6 +12,11 @@ class User(Base):
     status = sql.Column(sql.String(10), default='created')
     user_status = sql.Column(sql.String(30), default='Без подписки')
     vpn_status = sql.Column(sql.String(15), default='not requested')
+    promocode = sql.Column(sql.String(10), nullable=True)
+    promocode_used = sql.Column(sql.Boolean, default=False)
+    discount = sql.Column(sql.Integer(), default=0)
+    invite_discount = sql.Column(sql.Boolean, default=False)
+    invite_from_user_id = sql.Column(sql.Integer(), nullable=True)
     created_at = sql.Column(sql.DateTime)
     updated_at = sql.Column(sql.DateTime)
     expires_at = sql.Column(sql.DateTime, nullable=True)
@@ -31,8 +36,8 @@ class Server(Base):
 
     vpn = relationship('Vpn', backref='server')
 
-    # def __repr__(self) -> str:
-    #     return f'{self.name}'
+    def __repr__(self) -> str:
+        return f'{self.name}'
 
 class Vpn(Base):
     __tablename__ = 'vpn'
@@ -65,5 +70,8 @@ class Order(Base):
     donate_url = sql.Column(sql.String(200), nullable=True)
     plan_days = sql.Column(sql.Integer)
     amount = sql.Column(sql.Integer)
+    with_discount = sql.Column(sql.Boolean, default=False)
+    invite_order = sql.Column(sql.Boolean, default=False)
+    deleted = sql.Column(sql.Boolean, default=False)
     created_at = sql.Column(sql.DateTime)
     updated_at = sql.Column(sql.DateTime)

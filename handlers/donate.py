@@ -21,16 +21,20 @@ from loader import logger
 import const
 
 @logger.catch
-async def donate_subscription(callback: types.CallbackQuery, callback_data: dict):
+@auth
+async def donate_subscription(callback: types.CallbackQuery, user, callback_data: dict, **kwargs):
     plan = get_plan(callback_data.get('plan_id'))
-    user = get_user(callback.from_user.id)
     if not user:
         user = create_user(callback.from_user.id, callback.from_user.full_name)
     if len(get_user_orders(user.id)) <= const.MAX_ORDERS_CNT:
+        if user.discount:
+            amount_text = f'Сумма: *{plan.amount - user.discount}₽*'
+        else:
+            amount_text = f'Сумма: *{plan.amount}₽*'
         order = create_order(user, plan)
         await callback.message.edit_text(
             f'Ваш заказ *№{order.id}*\n'\
-            f'Cумма: *{plan.amount}₽*\n'\
+            f'Сумма: *{order.amount}₽*\n'\
             f'Количество дней: *{plan.days}*\n'\
             f'Статус: *{order.user_status}*\n'\
             f'Заказ действителен до конца дня.',
@@ -58,6 +62,7 @@ async def show_order(callback: types.CallbackQuery, user, callback_data: dict, *
     order = get_order(callback_data.get('order_id'))
     await callback.message.edit_text(
         f'Детали заказа *№{order.id}*\n\n'\
+        f'Сумма: *{order.amount}*\n'\
         f'Статус: *{order.user_status}*\n'\
         f'Создан: *{order.created_at.strftime("%d.%m.%Y %H:%M")} МСК*\n\n'\
         f'По вопросам оплаты заказа обращайтесь @endurancevpnsupport',

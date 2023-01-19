@@ -1,9 +1,4 @@
 from aiogram import Dispatcher, types
-from aiogram.dispatcher import FSMContext
-from aiogram.types import ReplyKeyboardRemove
-from db.models import User, Vpn
-from states import RegistrationStates
-from db.queries.common import update_item
 from keyboards.inline import (
     back_main,
     unsubscribed_keyboard
@@ -12,7 +7,6 @@ from services.decorators import auth
 from services.vpn import generate_user_config
 from services.actions import send_settings
 from loader import logger
-from datetime import datetime
 
 
 @logger.catch
@@ -72,5 +66,5 @@ async def get_settings(message : types.Message, user, **kwargs):
 
 
 def register_vpn_handlers(dp : Dispatcher):
-    dp.register_callback_query_handler(get_settings_callback, text='get_settings')
     dp.register_message_handler(get_settings, commands=['getsettings'])
+    dp.register_callback_query_handler(get_settings_callback, text='get_settings')

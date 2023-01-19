@@ -3,13 +3,6 @@ from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardRemove
 from db.models import User, Vpn
 from states import RegistrationStates
-from db.queries.queries import (
-    create_user,
-    get_user,
-    get_plan,
-    create_bill,
-    update_item
-    )
 from keyboards.inline import (
     plans_keyboard,
     pending_bills,

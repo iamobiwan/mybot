@@ -110,6 +110,13 @@ async def check_pending_orders():
             ).all()
         for order in orders:
             if test_check_order(order):
+                if order.invite_order:
+                    invite_user: User = session.query(User).filter(
+                        User.id == order.user.invite_from_user_id,
+                        ).first()
+                    if invite_user.discount < const.MAX_DISCOUNT:
+                        invite_user.discount += const.DISCOUNT_FOR_INVITE
+                    session.add(invite_user)
                 order.status = 'success'
                 order.user_status = 'оплачен'
                 order.updated_at = datetime.now()
@@ -141,41 +148,3 @@ async def check_pending_orders():
                         text=f'Ваш счет {order.id} на сумму {order.amount}₽ в статусе {order.user_status} скоро будет удален.\n\n'
                         )
             session.commit()
-
-    # with session_maker() as session:
-    #     vpns_bills = get_pending_bills()
-    #     if vpns_bills:
-    #         for vpn_bills in vpns_bills:
-    #             bills_data = vpn_bills[1]
-    #             vpn = vpn_bills[0]
-    #             for bill_data in bills_data:
-    #                 bill = bill_data.get('bill')
-    #                 if test_check_bill(bill.label):
-    #                     logger.info(f'Счет bill_id={bill.id} оплачен')
-    #                     bill.status = 'paid'
-    #                     bill.updated_at = datetime.now()
-    #                     try:
-    #                         await bot.delete_message(chat_id=bill.chat_id, message_id=bill.message_id)
-    #                     except:
-    #                         pass
-    #                     await bot.send_message(chat_id=bill.chat_id, text=f'Ваш счет на сумму {bill_data.get("t_price")}₽. оплачен.')
-    #                     if vpn.status == 'expired':
-    #                         vpn.expires_at = datetime.now() + timedelta(days=bill_data.get('t_days'))
-    #                     else:
-    #                         vpn.expires_at += timedelta(days=bill_data.get('t_days'))
-    #                     vpn.status = 'paid'
-    #                     vpn.updated_at = datetime.now()
-    #                     session.add(bill)
-    #                 else:
-    #                     bill.status = 'expired'
-    #                     bill.updated_at = datetime.now()
-    #                     try:
-    #                         await bot.delete_message(chat_id=bill.chat_id, message_id=bill.message_id)
-    #                     except:
-    #                         pass
-    #                     logger.info(f'Счет {bill.id} аннулирован')
-    #                     session.add(bill)
-    #             session.add(vpn)
-    #         session.commit()
-    #     else:
-    #         logger.info('Нет ожидающих счетов')

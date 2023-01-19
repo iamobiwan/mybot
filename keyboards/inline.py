@@ -12,22 +12,22 @@ def  start_keyboard(user):
 
 
 def unsubscribed_keyboard(user):
+    activate_trial_button = InlineKeyboardButton(text='\U0000231B Активировать пробный период', callback_data = 'activate_trial')
+    get_subscribe_button = InlineKeyboardButton(text='\U00002b50 Оформить подписку', callback_data = 'get_subscribe')
+    promocode_button = InlineKeyboardButton(text='\U0001f91d Применить промокод', callback_data = 'apply_promocode')
+    orders_button = InlineKeyboardButton(text='\U0001f4cb Мои заказы', callback_data = 'show_orders')
+    
+    markup = InlineKeyboardMarkup()
+    markup.row(activate_trial_button)
+    markup.row(get_subscribe_button)
     if user:
         orders = get_user_orders(user.id)
+        if orders:
+            markup.row(orders_button)
     else:
-        orders = None
-    markup = InlineKeyboardMarkup()
-    markup.row(
-            InlineKeyboardButton(text='\U0000231B Активировать пробный период', callback_data = 'activate_trial')
-        )
-    markup.row(
-            InlineKeyboardButton(text='\U00002b50 Оформить подписку', callback_data = 'get_subscribe')
-        )
-    if orders:
-        markup.row(
-            InlineKeyboardButton(text='\U0001f4cb Мои заказы', callback_data = 'show_orders')
-        )
+        markup.row(promocode_button)
     return markup
+
 
 def subscribed_user_keyboard(user):
     markup = InlineKeyboardMarkup()
@@ -38,17 +38,25 @@ def subscribed_user_keyboard(user):
                 callback_data='get_settings'
             )
         )
+        markup.row(
+            InlineKeyboardButton(
+                text='\U0001f91d Мой промокод',
+                callback_data='get_promocode'
+            )
+        )
     markup.row(
         InlineKeyboardButton(
             text='\U00002b50 Продлить подписку',
             callback_data='get_subscribe'
         )
     )
-    markup.row(
-        InlineKeyboardButton(
-            text='\U0001f4cb Мои заказы',
-            callback_data='show_orders'
-        )
+    orders = get_user_orders(user.id)
+    if orders:
+        markup.row(
+            InlineKeyboardButton(
+                text='\U0001f4cb Мои заказы',
+                callback_data='show_orders'
+            )
     )
     return markup
 
@@ -72,18 +80,21 @@ def back_main():
     )
     return markup
 
-def plans_keyboard():
+def plans_keyboard(user):
     markup = InlineKeyboardMarkup()
     plans = get_all_plans()
     for plan in plans:
-        button_text = f'{plan.days} дней за {plan.amount}₽'
+        if user.discount:
+            button_text = f'{plan.days} дней за {plan.amount - user.discount}₽ (было {plan.amount}₽)'
+        else:
+            button_text = f'{plan.days} дней за {plan.amount}₽'
         markup.row(
             InlineKeyboardButton(text=button_text, callback_data=plan_callback.new(plan_id=plan.id))
         )
     markup.row(
         InlineKeyboardButton(
             text='\U000025c0 Назад',
-            callback_data='main_callback'
+            callback_data='main_callback',
         )
     )
     return markup
